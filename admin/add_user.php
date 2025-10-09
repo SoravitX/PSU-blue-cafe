@@ -210,6 +210,29 @@ textarea:-webkit-autofill{
 *::-webkit-scrollbar-thumb{background:#2a3442;border-radius:10px}
 *::-webkit-scrollbar-thumb:hover{background:#334559}
 *::-webkit-scrollbar-track{background:#131923}
+/* ---- ปิดเงาทุกปุ่ม (ตามธีม no-shadow) ---- */
+.btn,
+.btn:hover,
+.btn:focus,
+.btn:active,
+.btn-primary,
+.btn-primary:hover,
+.btn-primary:focus {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* ตัด outline เรืองแสงตอนโฟกัส (ถ้าไม่ต้องการ) */
+:focus-visible {
+  outline: none !important;
+}
+
+/* ลบเงาที่ตั้งไว้ใน .btn-primary เดิม */
+.btn-primary { 
+  /* เคยมี: box-shadow:0 8px 22px rgba(58,163,255,.28); */
+  box-shadow: none !important;
+}
+
 </style>
 </head>
 <body>

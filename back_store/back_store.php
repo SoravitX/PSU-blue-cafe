@@ -376,7 +376,7 @@ body, .table, .btn, input, label, .badge { font-size:14.5px !important; }
               <div class="oid"><?= $seq ?> — <?= htmlspecialchars($o['username'] ?? 'user',ENT_QUOTES,'UTF-8') ?></div>
               <div class="meta">
                 <?= htmlspecialchars($o['order_time'],ENT_QUOTES,'UTF-8') ?>
-                · สถานะ: <?= htmlspecialchars($o['status'],ENT_QUOTES,'UTF-8') ?>
+                
                 <div class="pay-chip<?= $pay_class ?>"><?= $pay_text ?></div>
               </div>
             </div>
