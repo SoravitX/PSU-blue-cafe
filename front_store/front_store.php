@@ -1831,6 +1831,59 @@ body, .table, .btn, input, label, .badge{ font-size: 14.5px; }
   align-self: flex-start;               /* ชิดซ้ายใต้ราคา */
   display: inline-block;
 }
+/* ——— ย่อฟอนต์โปรโมชันในหน้าเมนู ——— */
+
+/* 1) ป้ายริบบอนมุมการ์ด (คำว่า โปร) */
+.product-mini .ribbon{
+  font-size: .72rem;     /* เดิม ~.80rem */
+  padding: 4px 8px;      /* ลด padding ให้สมส่วน */
+  letter-spacing: .15px; /* อ่านง่ายขึ้นตอนฟอนต์เล็ก */
+}
+
+/* 2) ป้ายเขียวใต้ชื่อเมนู (โปร: xxx -xx%) */
+.product-mini .meta .badge-success{
+  font-size: .70rem;     /* ย่อข้อความโปร */
+  padding: 2px 6px;      /* ให้ขนาดป้ายไม่เทอะทะ */
+  border-radius: 6px;
+  line-height: 1.05;
+}
+.product-mini .meta .badge-success .bi{
+  font-size: .9em;       /* ย่อไอคอนดาวให้เข้าฟอนต์ */
+  margin-right: 4px;
+}
+
+/* (ไม่บังคับ) ย่อเพิ่มในจอเล็ก */
+@media (max-width: 575.98px){
+  .product-mini .ribbon{ font-size: .68rem; padding: 3px 7px; }
+  .product-mini .meta .badge-success{ font-size: .66rem; padding: 2px 6px; }
+}
+/* Menu popup smaller on desktop/tablet */
+#menuModal .psu-modal__dialog{
+  width: min(820px, 88vw) !important;   /* เดิม min(1020px,96vw) */
+  max-height: 88vh !important;          /* ไม่ให้ยาวเกินจอ */
+}
+#menuModal .psu-modal__body{ padding: 0 !important; }
+/* ==== Slip upload zone: gray bg + white text ==== */
+#dropzone{
+  background: #3a3a3a !important;                 /* พื้นหลังเทา */
+  border: 2px dashed rgba(255,255,255,.45) !important;
+  color: #fff !important;
+}
+#dropzone .lead,
+#dropzone .small,
+#dropzone .text-muted{                             /* "รองรับ JPG, PNG, WebP, HEIC..." */
+  color: #fff !important;
+  opacity: .95;
+}
+
+/* ==== Amount line in slip modal: white ==== */
+#slipBody .text-muted{                             /* "ยอดที่ต้องชำระ:" */
+  color: #fff !important;
+}
+#slipAmount{                                       /* ตัวเลข 38.00 ฿ */
+  color: #fff !important;
+  font-weight: 900;
+}
 
 </style>
 </head>

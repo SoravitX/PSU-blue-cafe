@@ -1,6 +1,6 @@
 <?php
 // SelectRole/check_in.php — ลงเวลาทำงาน (Attendance)
-// Deep Blue theme • เวลาไทยตรง PHP/MySQL • Auto checkout + Toggle logs
+// Deep Blue theme • เวลาไทยตรง PHP/MySQL • Auto checkout + Toggle logs (first-visit hidden)
 declare(strict_types=1);
 session_start();
 if (empty($_SESSION['uid'])) { header("Location: ../index.php"); exit; }
@@ -372,6 +372,37 @@ body{
 /* ลมหายใจเล็ก ๆ เมื่ออยู่ในช่วงเช็คอิน */
 .pulse{ animation:pulse 1.3s ease-in-out infinite }
 @keyframes pulse{ 0%{opacity:.7} 50%{opacity:1} 100%{opacity:.7} }
+/* ===== Hour-type badges ===== */
+.badge-ht{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:.28rem .65rem;
+  border-radius:999px;
+  font-weight:900;
+  font-size:.92rem;
+  line-height:1;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
+}
+
+/* ชั่วโมงปกติ = น้ำเงิน */
+.badge-ht-normal{
+  color:#fff; /* ตัวอักษรสีขาว */
+  background: linear-gradient(180deg, #3ca0ff, #2a7bd9); /* ฟ้า->น้ำเงิน */
+  border:1px solid #1e6acc;
+}
+
+/* ชั่วโมงทุน = เขียว */
+.badge-ht-fund{
+  color:#fff; /* ตัวอักษรสีขาว */
+  background: linear-gradient(180deg, #22c55e, #16a34a); /* เขียวสด */
+  border:1px solid #0f7a39;
+}
+
+/* ตัวเล็กลงเล็กน้อยในตารางให้ดูแน่นขึ้น */
+.table-logs .badge-ht{
+  font-size:.88rem;
+  padding:.24rem .6rem;
+}
+
 </style>
 </head>
 <body>
@@ -460,7 +491,7 @@ body{
   <!-- Logs + Toggle -->
   <div class="d-flex justify-content-between align-items-center mb-2">
     <div class="h5 m-0"><i class="bi bi-journal-text"></i> บันทึกล่าสุด</div>
-    <button id="toggleLogs" class="btn btn-light btn-sm toggle-btn">ซ่อนบันทึกล่าสุด</button>
+    <button id="toggleLogs" class="btn btn-light btn-sm toggle-btn" aria-controls="logsBox" aria-expanded="true">ซ่อนบันทึกล่าสุด</button>
   </div>
 
   <div id="logsBox" class="cardx p-3">
@@ -512,4 +543,46 @@ body{
 </div>
 
 <script>
-function
+(function () {
+  function $(id){ return document.getElementById(id); }
+
+  const logsBox   = $('logsBox');
+  const toggleBtn = $('toggleLogs');
+  const KEY       = 'attendance.logs.hidden';
+
+  // ตั้งค่าแสดง/ซ่อน + อัปเดตปุ่ม/ARIA
+  function setHidden(hidden){
+    if (!logsBox || !toggleBtn) return;
+    logsBox.style.display = hidden ? 'none' : '';
+    toggleBtn.textContent = hidden ? 'แสดงบันทึกล่าสุด' : 'ซ่อนบันทึกล่าสุด';
+    toggleBtn.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    // ถ้ายังไม่เคยเก็บสถานะ (ครั้งแรก) => ซ่อน
+    const saved = localStorage.getItem(KEY);
+    if (saved === null) {
+      setHidden(true);               // first visit = hidden
+      localStorage.setItem(KEY,'1'); // บันทึกไว้ (ให้คง hidden รอบถัดไป)
+    } else {
+      setHidden(saved === '1');      // ใช้สถานะเดิม
+    }
+
+    if (toggleBtn){
+      toggleBtn.addEventListener('click', function(){
+        const willHide = logsBox && logsBox.style.display !== 'none';
+        setHidden(willHide);
+        localStorage.setItem(KEY, willHide ? '1' : '0');
+      });
+    }
+  });
+
+  // ยืนยันก่อนเช็คอิน (ป้องกันคลิกพลาด)
+  window.confirmCheckin = function(){
+    // ถ้าอยู่นอกช่วงเวลาจะมี title บอกอยู่แล้ว; ตรงนี้ถามอีกรอบเฉพาะตอนกดในช่วงเวลา
+    return confirm('ยืนยันเช็คอินตอนนี้หรือไม่?');
+  };
+})();
+</script>
+</body>
+</html>

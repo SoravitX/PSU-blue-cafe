@@ -387,6 +387,36 @@ body{ margin:0 !important; }
 .topbar{ position: sticky; top: 0; }
 
 /* แสดงเฉพาะเลขลำดับ (seq) ใน badge/หัวข้อ — ถ้าอยากซ่อน badge ก็ใช้ display:none ได้ */
+/* กันพื้นที่ด้านขวาให้ badge มุมขวาบน */
+.card-order{ --badge-w:72px; }          /* ปรับความกว้างกันพื้นที่ตามขนาด badge */
+.id-badge{ right:12px; top:10px; z-index:2; } /* คง absolute ไว้ได้ */
+
+.co-head{ padding-right: calc(var(--badge-w) + 8px) !important; } /* กันพื้นที่ในหัว */
+.co-body{ padding-right: calc(var(--badge-w) / 2) !important; }   /* กันนิดหน่อยไม่ให้ราคาทับ */
+
+@media (max-width: 576px){
+  .card-order{ --badge-w:60px; }        /* จอเล็ก ลดพื้นที่กัน */
+}
+/* ===== Force colors for payment badges (cash = green, transfer = blue) ===== */
+.card-order .badges .badge-pay.pay-cash{
+  background: linear-gradient(180deg,#22c55e,#16a34a) !important; /* เขียว */
+  border-color:#15803d !important;
+  color:#ffffff !important;
+  text-shadow:none !important;
+}
+.card-order .badges .badge-pay.pay-transfer{
+  background: linear-gradient(180deg,#3aa3ff,#1f7ee8) !important; /* ฟ้า */
+  border-color:#1669c9 !important;
+  color:#ffffff !important;
+  text-shadow:none !important;
+}
+
+/* เคยมีแค่เปลี่ยน "สีตัวอักษร" ของคลาสสั้น ๆ ไว้ก่อนหน้า ให้ทับไปเลย */
+.card-order .badges .badge-pay.pay-cash .bi,
+.card-order .badges .badge-pay.pay-transfer .bi{
+  color:inherit !important; /* ไอคอนเป็นสีเดียวกับตัวอักษร */
+}
+
 </style>
 </head>
 <body>
@@ -504,10 +534,7 @@ $seq = $seq_raw > 0 ? format_order_seq($seq_raw) : '#'.$oid; // มี seq ก�
 
         <!-- Badge มุมขวาบน แสดงเลข seq เช่น 002 -->
         <div class="id-badge"><?= h($seq) ?></div>
-<div class="oid">
-  <?= h($seq) ?>
-  <i class="bi bi-clipboard-plus copy" data-copy="<?= h($seq) ?>"></i>
-</div>
+
 
 
         <div class="co-head">
@@ -531,11 +558,7 @@ $seq = $seq_raw > 0 ? format_order_seq($seq_raw) : '#'.$oid; // มี seq ก�
               </button>
             <?php endif; ?>
 
-            <div class="badge-status <?= $statusClass ?>">
-              <span class="dot"></span>
-              <i class="bi <?= $o['status']==='ready' ? 'bi-check-circle' : ($o['status']==='canceled'?'bi-x-circle':'bi-hourglass') ?>"></i>
-              <?= h(ucfirst($o['status'])) ?>
-            </div>
+          
           </div>
         </div>
 

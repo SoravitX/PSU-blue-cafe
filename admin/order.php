@@ -460,6 +460,43 @@ body,.table,.btn,input,label,.badge,.chip,.note{ font-size:14.5px !important; }
 .btn-excel-pill .bi{ font-size:1rem; }
 .btn-excel-pill:hover{ filter:brightness(1.06); }
 .btn-excel-pill:active{ transform:translateY(1px); }
+/* กันพื้นที่ด้านขวาให้ badge มุมขวา ไม่ให้ไปทับราคา */
+.card-order{ --badge-w:72px; }
+.id-badge{ right:12px; top:10px; z-index:2; } /* คง absolute ได้ */
+.co-head{ padding-right: calc(var(--badge-w) + 8px) !important; }
+.co-body{ padding-right: calc(var(--badge-w) / 2) !important; }
+
+@media (max-width: 768px){
+  .card-order{ --badge-w:56px; } /* จอเล็ก ลดความกว้างที่กันไว้ */
+}
+/* กันพื้นที่หัวการ์ดด้านซ้ายให้ริบบอน ไม่ให้ทับข้อความ */
+.card-order{ --ribbon-w:100px; } /* กว้างโดยประมาณของริบบอน */
+.co-head{ padding-left: calc(var(--ribbon-w) + 12px) !important; }
+
+/* จอเล็ก ลดพื้นที่กัน */
+@media (max-width: 576px){
+  .card-order{ --ribbon-w:84px; }
+}
+/* ===== Force colors for payment badges (cash = green, transfer = blue) ===== */
+.card-order .badges .badge-pay.pay-cash{
+  background: linear-gradient(180deg,#22c55e,#16a34a) !important; /* เขียว */
+  border-color:#15803d !important;
+  color:#ffffff !important;
+  text-shadow:none !important;
+}
+.card-order .badges .badge-pay.pay-transfer{
+  background: linear-gradient(180deg,#3aa3ff,#1f7ee8) !important; /* ฟ้า */
+  border-color:#1669c9 !important;
+  color:#ffffff !important;
+  text-shadow:none !important;
+}
+
+/* เคยมีแค่เปลี่ยน "สีตัวอักษร" ของคลาสสั้น ๆ ไว้ก่อนหน้า ให้ทับไปเลย */
+.card-order .badges .badge-pay.pay-cash .bi,
+.card-order .badges .badge-pay.pay-transfer .bi{
+  color:inherit !important; /* ไอคอนเป็นสีเดียวกับตัวอักษร */
+}
+.badge-status{ display:none !important; }
 
 </style>
 </head>
@@ -604,11 +641,7 @@ body,.table,.btn,input,label,.badge,.chip,.note{ font-size:14.5px !important; }
         <div class="co-head">
           <div>
             <!-- ✅ หัวการ์ด = YYMMDD-### (fallback #order_id) -->
-            <div class="oid">
-              <?= h($displayId) ?>
-              <!-- ✅ กดคัดลอก = YYMMDD-### -->
-              <i class="bi bi-clipboard-plus copy" title="คัดลอกเลขออเดอร์" data-copy="<?= h($displayId) ?>"></i>
-            </div>
+           
             <div class="meta"><i class="bi bi-clock-history"></i> <?= h($o['order_time']) ?> • <i class="bi bi-basket2"></i> <?= $itemCount ?> รายการ</div>
           </div>
           <div class="badges">

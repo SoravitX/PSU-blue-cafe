@@ -379,7 +379,7 @@ body,.table,.btn,input,label,.badge{ font-size:14.5px !important; }
       </a>
 
       <a href="promo_create.php" class="btn btn-ghost btn-sm"><i class="bi bi-stars"></i> สร้างโปรโมชัน</a>
-      <a href="recipes.php" class="btn btn-ghost btn-sm"><i class="bi bi-journal-text"></i> สูตรเมนู</a>
+      <a href="admin_recipes.php" class="btn btn-ghost btn-sm"><i class="bi bi-journal-text"></i> สูตรเมนู</a>
 
       <span class="badge badge-user px-3 py-2"><i class="bi bi-shield-lock"></i> ผู้ดูแลระบบ</span>
       <a class="btn btn-sm btn-logout" href="../logout.php">

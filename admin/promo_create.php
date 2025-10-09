@@ -1,8 +1,5 @@
 <?php
 // admin/promo_create.php — สร้างโปรโมชัน + ผูกกับหลายเมนู (Font_Store Blue Theme)
-// - โทนสีน้ำเงินเดียวกับหน้า font_store (#2EA7FF → #1F7EE8)
-// - มี min_order_total (เฉพาะ ORDER) + max_discount + usage_limit
-// - ซ่อน/แสดงฟิลด์ตาม scope
 declare(strict_types=1);
 session_start();
 if (empty($_SESSION['uid'])) { header("Location: ../index.php"); exit; }
@@ -16,6 +13,60 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
 $message = ''; $msgClass = 'success';
 
+/* ===== POST: Toggle active ===== */
+if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action'] ?? '')==='toggle') {
+  try{
+    $promo_id = (int)($_POST['promo_id'] ?? 0);
+    $to       = (int)($_POST['to'] ?? -1);
+    if ($promo_id<=0 || ($to!==0 && $to!==1)) throw new Exception('ข้อมูลไม่ถูกต้อง');
+
+    $stmt = $conn->prepare("UPDATE promotions SET is_active=?, updated_at=NOW() WHERE promo_id=?");
+    $stmt->bind_param('ii', $to, $promo_id);
+    $stmt->execute();
+    if ($stmt->affected_rows<0) throw new Exception('อัปเดตไม่สำเร็จ');
+    $stmt->close();
+
+    $message = ($to? 'เปิดใช้งาน' : 'ปิดใช้งาน') . " โปรโมชัน #{$promo_id} แล้ว";
+    $msgClass = 'success';
+  }catch(Throwable $e){
+    $message = 'อัปเดตสถานะไม่สำเร็จ: '.$e->getMessage();
+    $msgClass = 'danger';
+  }
+}
+
+/* ===== POST: Delete promo ===== */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+  try{
+    $promo_id = (int)($_POST['promo_id'] ?? 0);
+    if ($promo_id <= 0) { throw new Exception('รหัสโปรโมชันไม่ถูกต้อง'); }
+
+    $conn->begin_transaction();
+
+    $stmt = $conn->prepare("DELETE FROM promotion_items WHERE promo_id=?");
+    $stmt->bind_param('i', $promo_id);
+    $stmt->execute(); $stmt->close();
+
+    $stmt = $conn->prepare("DELETE FROM promotions WHERE promo_id=?");
+    $stmt->bind_param('i', $promo_id);
+    $stmt->execute();
+    $affected = $stmt->affected_rows;
+    $stmt->close();
+
+    if ($affected <= 0) {
+      $conn->rollback();
+      throw new Exception('ไม่พบโปรโมชันที่ต้องการลบ');
+    }
+
+    $conn->commit();
+    $message = 'ลบโปรโมชัน #' . $promo_id . ' เรียบร้อย';
+    $msgClass = 'success';
+  }catch(Throwable $e){
+    if ($conn->errno) { $conn->rollback(); }
+    $message = 'ลบไม่สำเร็จ: ' . $e->getMessage();
+    $msgClass = 'danger';
+  }
+}
+
 /* ===== POST: Create promo ===== */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create') {
   $name           = trim((string)($_POST['name'] ?? ''));
@@ -23,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
   $discount_type  = ($_POST['discount_type'] ?? 'PERCENT') === 'FIXED' ? 'FIXED' : 'PERCENT';
   $discount_value = (float)($_POST['discount_value'] ?? 0);
 
-  // optional -> NULL
   $min_order_total = (isset($_POST['min_order_total']) && $_POST['min_order_total'] !== '') ? (float)$_POST['min_order_total'] : null;
   $max_discount    = (isset($_POST['max_discount'])    && $_POST['max_discount']    !== '') ? (float)$_POST['max_discount']    : null;
   $usage_limit     = (isset($_POST['usage_limit'])     && $_POST['usage_limit']     !== '') ? (int)$_POST['usage_limit']       : null;
@@ -40,7 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $menu_ids = array_values(array_unique(array_map('intval', (array)($_POST['menu_ids'] ?? []))));
   }
 
-  // validate
   if ($name===''){ $message='กรุณากรอกชื่อโปรโมชัน'; $msgClass='danger'; }
   elseif ($discount_value<=0){ $message='ส่วนลดต้องมากกว่า 0'; $msgClass='danger'; }
   elseif ($start_raw==='' || $end_raw===''){ $message='กรุณาระบุช่วงเวลาเริ่ม/สิ้นสุด'; $msgClass='danger'; }
@@ -81,8 +130,7 @@ $menus = $conn->query("
 $recent = $conn->query("
   SELECT p.promo_id, p.name, p.scope, p.discount_type, p.discount_value,
          p.min_order_total, p.max_discount, p.usage_limit,
-         p.start_at, p.end_at, p.is_active,
-         (SELECT COUNT(*) FROM promotion_items pi WHERE pi.promo_id=p.promo_id) AS item_count
+         p.start_at, p.end_at, p.is_active
   FROM promotions p
   ORDER BY p.promo_id DESC
   LIMIT 15
@@ -97,146 +145,132 @@ $recent = $conn->query("
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
-/* ===== Font_Store Blue Theme ===== */
 :root{
-  --text-strong:#F4F7F8;
-  --text-normal:#E6EBEE;
-  --text-muted:#B9C2C9;
-
-  --bg-grad1:#1b2026;
-  --bg-grad2:#252b33;
-
-  --surface:#12171d;
-  --surface-2:#171d24;
-  --surface-3:#1c232b;
-
+  --text-strong:#F4F7F8; --text-normal:#E6EBEE; --text-muted:#B9C2C9;
+  --bg-grad1:#1b2026; --bg-grad2:#252b33;
+  --surface:#12171d; --surface-2:#171d24; --surface-3:#1c232b;
   --ink:#F4F7F8;
-
-  /* เปลี่ยนโทนหลักเป็นน้ำเงินแบบ font_store */
-  --brand-900:#EAF3FF;
-  --brand-700:#C9DCF9;
-  --brand-500:#2EA7FF;   /* primary */
-  --brand-400:#1F7EE8;   /* primary darker */
-  --brand-300:#73C0FF;   /* light accent */
-
-  --ok:#22C55E;
-  --danger:#E53935;
-
-  --shadow:0 14px 34px rgba(0,0,0,.46);
-  --shadow-lg:0 22px 66px rgba(0,0,0,.58);
+  --brand-900:#EAF3FF; --brand-700:#C9DCF9; --brand-500:#2EA7FF; --brand-400:#1F7EE8; --brand-300:#73C0FF;
+  --ok:#22C55E; --danger:#E53935;
+  --shadow:0 14px 34px rgba(0,0,0,.46); --shadow-lg:0 22px 66px rgba(0,0,0,.58);
 }
-
 html,body{height:100%}
 body{
   background:
     radial-gradient(900px 360px at 110% -10%, rgba(46,167,255,.16), transparent 60%),
     linear-gradient(135deg,var(--bg-grad1),var(--bg-grad2));
-  color:var(--text-strong);
-  font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  color:var(--text-strong); font-family:"Segoe UI",Tahoma,Arial,sans-serif;
 }
 .wrap{max-width:1100px;margin:26px auto;padding:0 14px}
 .h4,.h5,h4,h5{ color:var(--brand-900) }
-
-/* Card */
 .cardx{
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--surface), white 2%), color-mix(in oklab, var(--surface-2), white 2%));
-  color:var(--ink);
-  border:1px solid rgba(255,255,255,.06);
-  border-radius:16px; box-shadow:var(--shadow);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--surface), white 2%), color-mix(in oklab, var(--surface-2), white 2%));
+  color:var(--ink); border:1px solid rgba(255,255,255,.06); border-radius:16px; box-shadow:var(--shadow);
 }
 .card-head{
-  padding:10px 14px;
-  border-bottom:1px solid rgba(255,255,255,.08);
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--surface-2), white 4%), color-mix(in oklab, var(--surface-2), black 0%));
+  padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.08);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--surface-2), white 4%), color-mix(in oklab, var(--surface-2), black 0%));
   color:var(--brand-700); font-weight:800;
 }
-
-/* Badges & Buttons */
 .badge-chip{
   background:linear-gradient(180deg, rgba(46,167,255,.18), rgba(31,126,232,.14));
-  color:#0B223A;
-  border:1px solid rgba(31,126,232,.35);
-  border-radius:999px; padding:.28rem .65rem; font-weight:900;
-  text-shadow:0 1px 0 rgba(255,255,255,.25);
+  color:#0B223A; border:1px solid rgba(31,126,232,.35);
+  border-radius:999px; padding:.28rem .65rem; font-weight:900; text-shadow:0 1px 0 rgba(255,255,255,.25);
 }
 .btn-main{
   background:linear-gradient(180deg, var(--brand-500), var(--brand-400));
-  border:0; font-weight:900; color:#05182b; border-radius:12px;
-  box-shadow:0 10px 26px rgba(31,126,232,.32);
+  border:0; font-weight:900; color:#05182b; border-radius:12px; box-shadow:0 10px 26px rgba(31,126,232,.32);
 }
 .btn-main:hover{ filter:brightness(1.05) }
-.btn-outline-light{
-  font-weight:800;border-radius:12px;border-color:rgba(255,255,255,.25);color:var(--text-normal)
-}
+.btn-outline-light{ font-weight:800;border-radius:12px;border-color:rgba(255,255,255,.25);color:var(--text-normal) }
 .btn-outline-light:hover{background:rgba(255,255,255,.06)}
-
-/* ปุ่มรายละเอียด โทนน้ำเงิน (ตาม font_store) */
 .btn-detail{
   background: linear-gradient(180deg, var(--brand-500), var(--brand-400));
   color:#05182b; border:0; border-radius:10px; font-weight:900; padding:.25rem .6rem;
   box-shadow:0 10px 26px rgba(31,126,232,.28);
 }
 .btn-detail:hover{ filter:brightness(1.07); transform:translateY(-1px); }
+.btn-delete{
+  background: linear-gradient(180deg, #ff5b5b, #e53935);
+  color:#fff !important; border:0; border-radius:10px; font-weight:900; padding:.25rem .6rem;
+  box-shadow:0 10px 26px rgba(229,57,53,.30);
+}
+.btn-delete:hover{ filter:brightness(1.07); transform:translateY(-1px); color:#fff !important; }
+.btn-toggle{
+  background: linear-gradient(180deg, #6b7a90, #4e5a6b);
+  color:#fff !important; border:0; border-radius:10px; font-weight:900; padding:.25rem .6rem;
+  box-shadow:0 10px 26px rgba(0,0,0,.25);
+}
+.btn-toggle:hover{ filter:brightness(1.07); transform:translateY(-1px); color:#fff !important; }
 
-/* Form */
 label{ color:var(--brand-700); font-weight:700 }
 .form-control,.custom-select{
   color:var(--text-strong); background:var(--surface-3);
   border:1.5px solid rgba(255,255,255,.10); border-radius:12px;
 }
 .form-control::placeholder{ color:#9aa3ab }
-.form-control:focus,.custom-select:focus{
-  border-color:var(--brand-500);
-  box-shadow:0 0 0 .22rem rgba(46,167,255,.25);
-  background:#202833;
-}
-
-/* Menu picker */
-.menu-list{
-  max-height:340px; overflow:auto; border:1px solid rgba(255,255,255,.08);
-  border-radius:12px; background:#151c23;
-}
-.menu-item{
-  display:flex; align-items:center; justify-content:space-between;
-  padding:10px 12px; border-bottom:1px dashed rgba(255,255,255,.08); color:var(--text-normal)
-}
+.form-control:focus,.custom-select:focus{ border-color:var(--brand-500); box-shadow:0 0 0 .22rem rgba(46,167,255,.25); background:#202833; }
+.menu-list{ max-height:340px; overflow:auto; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:#151c23; }
+.menu-item{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px dashed rgba(255,255,255,.08); color:var(--text-normal) }
 .menu-item:last-child{border-bottom:0}
 .menu-item strong{color:var(--brand-300)}
 .muted{color:var(--text-muted)}
-
-/* Table */
-.table thead th{
-  background:#1a222b; color:var(--brand-300);
-  border-bottom:2px solid rgba(255,255,255,.08); font-weight:800
-}
+.table thead th{ background:#1a222b; color:var(--brand-300); border-bottom:2px solid rgba(255,255,255,.08); font-weight:800 }
 .table td,.table th{ border-color:rgba(255,255,255,.06)!important; color:var(--text-normal) }
 .table tbody tr:hover td{ background:#1d2630; color:var(--text-strong) }
-
-/* Alerts */
 .alert-success{background:rgba(34,197,94,.12);color:#b6f3c8;border:1px solid rgba(34,197,94,.35)}
 .alert-danger {background:rgba(229,57,53,.12); color:#ffb3b1;border:1px solid rgba(229,57,53,.35)}
-/* ==== White text helpers for badges ==== */
 .badge-chip.badge-white { color: #fff !important; text-shadow: none !important; }
-.badge-chip.badge-white a, 
-.badge-chip.badge-white i { color: #fff !important; }
-
-/* เผื่อปุ่ม/ป้ายสถานะ เปิด/ปิด */
+.badge-chip.badge-white a, .badge-chip.badge-white i { color: #fff !important; }
 .status-chip { color:#fff !important; text-shadow:none !important; }
-/* Admin button: white text */
 .btn-admin{
   background: linear-gradient(180deg, var(--brand-500), var(--brand-400));
-  border: 1px solid #1e6acc;
-  color:#fff !important;            /* <- เปลี่ยนเป็นขาว */
-  font-weight:900;
-  border-radius:12px;
-  padding:.38rem .8rem;
-  box-shadow:0 10px 26px rgba(31,126,232,.28);
+  border: 1px solid #1e6acc; color:#fff !important; font-weight:900; border-radius:12px;
+  padding:.38rem .8rem; box-shadow:0 10px 26px rgba(31,126,232,.28);
 }
-.btn-admin .bi{ color:#fff !important; }   /* ไอคอนขาวด้วย */
+.btn-admin .bi{ color:#fff !important; }
 .btn-admin:hover{ filter:brightness(1.05); transform:translateY(-1px); color:#fff !important; }
 .btn-admin:focus{ outline:3px solid rgba(31,126,232,.35); outline-offset:2px; color:#fff !important; }
+
+/* ชื่อโปรโมชัน 1 บรรทัด + … */
+.table-fixed{ table-layout: fixed; width:100%; }
+th.col-name, td.col-name{ width: 320px; }
+td.col-name .one-line{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; word-break:keep-all; }
+/* ชื่อโปรโมชัน 1 บรรทัด + … (ทำให้แคบลง) */
+.table-fixed { table-layout: fixed; width: 100%; }
+
+/* เดิม 320px → ลดลง */
+th.col-name,
+td.col-name { width: 220px; }      /* ขนาดพื้นฐาน */
+
+td.col-name .one-line{
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: keep-all;
+}
+
+/* จอใหญ่มากค่อยขยายเล็กน้อย */
+@media (min-width: 1200px){
+  th.col-name, td.col-name { width: 160px; }
+}
+
+/* จอเล็กลงอีกก็ลดเพิ่มได้ (ถ้าต้องการ) */
+@media (max-width: 992px){
+  th.col-name, td.col-name { width: 200px; }
+}
+/* ===== ล้างเงาทั้งหมดในหน้านี้ ===== */
+:root{
+  --shadow: none !important;
+  --shadow-lg: none !important;
+}
+
+/* ปิดเงาทุกองค์ประกอบ (ทั้งกล่องและตัวอักษร) */
+*, *::before, *::after{
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
 
 </style>
 </head>
@@ -247,9 +281,8 @@ label{ color:var(--brand-700); font-weight:700 }
     <h4 class="mb-0 font-weight-bold"><i class="bi bi-ticket-perforated"></i> สร้างโปรโมชัน</h4>
     <div>
       <a href="adminmenu.php" class="btn btn-admin btn-sm mr-2">
-  <i class="bi bi-gear"></i> เมนูแอดมิน
-</a>
-
+        <i class="bi bi-gear"></i> เมนูแอดมิน
+      </a>
       <a href="../logout.php" class="btn btn-sm btn-outline-light"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</a>
     </div>
   </div>
@@ -262,7 +295,6 @@ label{ color:var(--brand-700); font-weight:700 }
   <div class="cardx mb-3">
     <div class="card-head d-flex align-items-center justify-content-between">
       <div><i class="bi bi-sliders"></i> ตั้งค่าโปรโมชัน</div>
-      <span class="badge-chip badge-white">เปอร์เซ็นต์/บาท • ITEM/ORDER</span>
     </div>
     <div class="p-3">
       <form method="post">
@@ -362,39 +394,28 @@ label{ color:var(--brand-700); font-weight:700 }
     <div class="card-head d-flex align-items-center justify-content-between">
       <div><i class="bi bi-clock-history"></i> โปรโมชันล่าสุด</div>
       <span class="badge-chip badge-white">แสดง 15 รายการล่าสุด</span>
-
     </div>
     <div class="p-3">
       <div class="table-responsive">
-        <table class="table table-sm mb-0">
+        <table class="table table-sm mb-0 table-fixed">
           <thead>
             <tr>
-              <th style="width:60px">#</th>
-              <th>ชื่อ</th>
-              <th style="width:90px">Scope</th>
+              <th class="col-name">ชื่อ</th>
               <th style="width:120px">ประเภทส่วนลด</th>
               <th style="width:120px">ค่า</th>
-              <th style="width:120px">Min (฿)</th>
-              <th style="width:120px">MaxDisc (฿)</th>
-              <th style="width:100px">Limit</th>
               <th style="width:150px">เริ่ม</th>
               <th style="width:150px">สิ้นสุด</th>
               <th style="width:90px">สถานะ</th>
-              <th style="width:90px" class="text-right">#เมนู</th>
-              <th style="width:110px" class="text-right">จัดการ</th>
+              <th style="width:220px" class="text-right">จัดการ</th>
             </tr>
           </thead>
           <tbody>
             <?php if($recent && $recent->num_rows>0): ?>
               <?php while($p=$recent->fetch_assoc()): ?>
                 <tr>
-                  <td><?= (int)$p['promo_id'] ?></td>
-                  <td><?= h($p['name']) ?></td>
-                  <td>
-  <span class="badge-chip <?= ($p['scope']==='ITEM'?'badge-white':'') ?>">
-    <?= h($p['scope']) ?>
-  </span>
-</td>
+                  <td class="col-name">
+                    <span class="one-line" title="<?= h($p['name']) ?>"><?= h($p['name']) ?></span>
+                  </td>
 
                   <td><?= h($p['discount_type']) ?></td>
                   <td>
@@ -404,33 +425,46 @@ label{ color:var(--brand-700); font-weight:700 }
                       <?= number_format((float)$p['discount_value'],2) ?> ฿
                     <?php endif; ?>
                   </td>
-                  <td><?= $p['min_order_total']!==null ? number_format((float)$p['min_order_total'],2) : '-' ?></td>
-                  <td><?= $p['max_discount']!==null   ? number_format((float)$p['max_discount'],2)   : '-' ?></td>
-                  <td><?= $p['usage_limit']!==null    ? (int)$p['usage_limit']                       : '-' ?></td>
-                  <td><?= h($p['start_at']) ?></td>
-                  <td><?= h($p['end_at']) ?></td>
-                  <td>
-  <?php if((int)$p['is_active']===1): ?>
-    <span class="badge-chip status-chip"
-      style="background:linear-gradient(180deg, rgba(46,197,94,.22), rgba(34,197,94,.18)); border-color:rgba(34,197,94,.35)">
-      เปิด
-    </span>
-  <?php else: ?>
-    <span class="badge-chip status-chip"
-      style="background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05)); border-color:rgba(255,255,255,.18)">
-      ปิด
-    </span>
-  <?php endif; ?>
-</td>
 
-                  <td class="text-right"><?= (int)$p['item_count'] ?></td>
+                  <td><?= h(date('Y-m-d', strtotime($p['start_at']))) ?></td>
+                  <td><?= h(date('Y-m-d', strtotime($p['end_at']))) ?></td>
+
+                  <td>
+                    <?php if((int)$p['is_active']===1): ?>
+                      <span class="badge-chip status-chip"
+                        style="background:linear-gradient(180deg, rgba(46,197,94,.22), rgba(34,197,94,.18)); border-color:rgba(34,197,94,.35)">
+                        เปิด
+                      </span>
+                    <?php else: ?>
+                      <span class="badge-chip status-chip"
+                        style="background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05)); border-color:rgba(255,255,255,.18)">
+                        ปิด
+                      </span>
+                    <?php endif; ?>
+                  </td>
+
                   <td class="text-right">
-                    <a class="btn btn-sm btn-detail" href="promo_detail.php?id=<?= (int)$p['promo_id'] ?>">รายละเอียด</a>
+                    <a class="btn btn-sm btn-detail mb-1" href="promo_detail.php?id=<?= (int)$p['promo_id'] ?>">รายละเอียด</a>
+
+                    <form method="post" class="d-inline">
+                      <input type="hidden" name="action" value="toggle">
+                      <input type="hidden" name="promo_id" value="<?= (int)$p['promo_id'] ?>">
+                      <input type="hidden" name="to" value="<?= (int)$p['is_active']===1 ? 0 : 1 ?>">
+                      <button type="submit" class="btn btn-sm btn-toggle mb-1">
+                        <?= (int)$p['is_active']===1 ? 'ปิดการใช้งาน' : 'เปิดการใช้งาน' ?>
+                      </button>
+                    </form>
+
+                    <form method="post" class="d-inline" onsubmit="return confirm('ลบโปรโมชัน #<?= (int)$p['promo_id'] ?> นี้ใช่หรือไม่?');">
+                      <input type="hidden" name="action" value="delete">
+                      <input type="hidden" name="promo_id" value="<?= (int)$p['promo_id'] ?>">
+                      <button type="submit" class="btn btn-sm btn-delete mb-1">ลบ</button>
+                    </form>
                   </td>
                 </tr>
               <?php endwhile; ?>
             <?php else: ?>
-              <tr><td colspan="13" class="text-center text-muted">ยังไม่มีโปรโมชัน</td></tr>
+              <tr><td colspan="7" class="text-center text-muted">ยังไม่มีโปรโมชัน</td></tr>
             <?php endif; ?>
           </tbody>
         </table>

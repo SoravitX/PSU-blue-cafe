@@ -1,5 +1,5 @@
 <?php
-// back_store/back_store.php — แสดงออเดอร์ + ตัวช่วยค้นหาเมนู/วันเวลา + PSU Topbar + ดูสลิป (Full fixed) + ดูสูตรเมนู
+// back_store/back_store.php — แสดงออเดอร์ + ตัวช่วยค้นหาเมนู/วันเวลา + PSU Topbar + ดูสลิป (Full fixed) + ดูสูตรเมนู (ใช้ตาราง recipes ใหม่)
 // (คุมโทน UI ให้เหมือนหน้า front_store) — แก้ให้แสดงเลขออเดอร์แบบ seq-only (###)
 
 declare(strict_types=1);
@@ -35,62 +35,40 @@ if (($_GET['action'] ?? '') === 'slips') {
   echo json_encode(['ok'=>true,'order_id'=>$oid,'slips'=>$rows]); exit;
 }
 
-/* ---------- Endpoint: recipe ---------- */
+/* ---------- Endpoint: recipe (ตารางใหม่ recipes) ---------- */
 if (($_GET['action'] ?? '') === 'recipe') {
   header('Content-Type: application/json; charset=utf-8');
   $mid = (int)($_GET['menu_id'] ?? 0);
   if ($mid <= 0) { echo json_encode(['ok'=>false,'msg'=>'menu_id ไม่ถูกต้อง']); exit; }
 
-  $menu = null; $rid = 0;
-  if ($st = $conn->prepare("
-      SELECT r.recipe_id, r.menu_id, COALESCE(r.title, m.name) AS title, m.name AS menu_name
-      FROM recipe_headers r
-      JOIN menu m ON m.menu_id=r.menu_id
-      WHERE r.menu_id=? ORDER BY r.recipe_id DESC LIMIT 1
-  ")) {
-    $st->bind_param("i",$mid); $st->execute();
-    $rs=$st->get_result(); $menu=$rs->fetch_assoc(); $st->close();
-    if ($menu) $rid = (int)$menu['recipe_id'];
-  }
-  if ($rid===0) { echo json_encode(['ok'=>false,'msg'=>'ยังไม่มีสูตรของเมนูนี้']); exit; }
+  // ดึง "สูตรล่าสุด" ของเมนูนี้จากตารางใหม่ recipes (ข้อความเดียว)
+  $st = $conn->prepare("
+      SELECT r.recipe_id, r.title, r.recipe_text, m.menu_id, m.name AS menu_name
+      FROM recipes r
+      JOIN menu m ON m.menu_id = r.menu_id
+      WHERE r.menu_id = ?
+      ORDER BY r.recipe_id DESC
+      LIMIT 1
+  ");
+  $st->bind_param("i",$mid);
+  $st->execute();
+  $row = $st->get_result()->fetch_assoc();
+  $st->close();
 
-  $steps = [];
-  if ($st = $conn->prepare("
-      SELECT step_id, step_no, step_text, sort_order
-      FROM recipe_steps
-      WHERE recipe_id=?
-      ORDER BY (CASE WHEN sort_order>0 THEN sort_order ELSE step_no END), step_no
-  ")) {
-    $st->bind_param("i",$rid); $st->execute(); $rs=$st->get_result();
-    while($r=$rs->fetch_assoc()){ $r['ingredients']=[]; $steps[(int)$r['step_id']]=$r; }
-    $st->close();
+  if (!$row) {
+    echo json_encode(['ok'=>false,'msg'=>'ยังไม่มีสูตรของเมนูนี้']); exit;
   }
-
-  $common = [];
-  if ($st = $conn->prepare("
-      SELECT ingredient_id, step_id, name, qty, unit, note, sort_order
-      FROM recipe_ingredients
-      WHERE recipe_id=?
-      ORDER BY (CASE WHEN sort_order>0 THEN sort_order ELSE ingredient_id END)
-  ")) {
-    $st->bind_param("i",$rid); $st->execute(); $rs=$st->get_result();
-    while($r=$rs->fetch_assoc()){
-      $sid = (int)($r['step_id'] ?? 0);
-      if ($sid===0) $common[]=$r; else if(isset($steps[$sid])) $steps[$sid]['ingredients'][]=$r;
-    }
-    $st->close();
-  }
-
-  $stepsArr = array_values($steps);
-  usort($stepsArr,function($a,$b){
-    $aa = $a['sort_order'] ?: $a['step_no']; $bb = $b['sort_order'] ?: $b['step_no']; return $aa <=> $bb;
-  });
 
   echo json_encode([
     'ok'=>true,
-    'menu'=>['menu_id'=>$menu['menu_id'], 'title'=>$menu['title'], 'name'=>$menu['menu_name']],
-    'common'=>$common, 'steps'=>$stepsArr
-  ]); exit;
+    'menu'=>['menu_id'=>$row['menu_id'], 'name'=>$row['menu_name']],
+    'recipe'=>[
+      'recipe_id'=>(int)$row['recipe_id'],
+      'title'=>$row['title'] ?: $row['menu_name'],
+      'text'=>$row['recipe_text'] ?? ''
+    ]
+  ], JSON_UNESCAPED_UNICODE);
+  exit;
 }
 
 /* ---------- POST: update status ---------- */
@@ -167,105 +145,62 @@ function get_order_lines(mysqli $conn, int $oid): array{
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 <style>
-/* ===== (เดิมทั้งหมด) โค้ด CSS คงไว้ตามไฟล์ของคุณ ===== */
-/* ... (ย่อเพื่อความสั้น — ใช้สไตล์เดิมที่คุณให้มาได้เลย) ... */
-
-/* ====== ใส่ CSS เดิมทั้งหมดของคุณตรงนี้โดยไม่ต้องแก้ ====== */
+/* ===== CSS ของคุณ (คงเดิม) ===== */
 :root{
   --bg1:#222831; --bg2:#393E46;
   --surface:#1C2228; --surface2:#232A31; --surface3:#2B323A;
   --ink:#F4F7F8; --ink-dim:#CFEAED; --muted:#B9C2C9;
-
   --accent:#00ADB5; --accent-2:#27C8CF; --accent-3:#73E2E6;
   --ok:#2ecc71; --bad:#e74c3c;
-
-  --cardLight:#0f1820;
-  --cardBg:#0B0F14;
-  --cardEdge:#0ad3db;
-  --cardBorder:rgba(255,255,255,.12);
-
-  --shadow:0 14px 34px rgba(0,0,0,.46);
-  --shadow-lg:0 22px 66px rgba(0,0,0,.55);
+  --cardLight:#0f1820; --cardBg:#0B0F14; --cardEdge:#0ad3db; --cardBorder:rgba(255,255,255,.12);
+  --shadow:0 14px 34px rgba(0,0,0,.46); --shadow-lg:0 22px 66px rgba(0,0,0,.55);
 }
-body{
-  background:linear-gradient(135deg,var(--bg1),var(--bg2));
-  color:var(--ink); font-family:"Segoe UI",Tahoma,Arial,sans-serif;
-}
+body{ background:linear-gradient(135deg,var(--bg1),var(--bg2)); color:var(--ink); font-family:"Segoe UI",Tahoma,Arial,sans-serif; }
 .wrap{max-width:1400px;margin:26px auto;padding:0 16px;}
 .brand{font-weight:900; letter-spacing:.3px}
-.topbar{
-  position:sticky; top:0; z-index:50; padding:12px 16px; margin:16px auto 12px; border-radius:14px;
-  background:color-mix(in oklab, var(--surface), white 6%);
-  border:1px solid rgba(255,255,255,.18); box-shadow:0 10px 26px rgba(0,0,0,.38); max-width:1400px;
-}
+.topbar{ position:sticky; top:0; z-index:50; padding:12px 16px; margin:16px auto 12px; border-radius:14px;
+  background:color-mix(in oklab, var(--surface), white 6%); border:1px solid rgba(255,255,255,.18); box-shadow:0 10px 26px rgba(0,0,0,.38); max-width:1400px; }
 .topbar-actions{ gap:8px }
 .topbar-actions .btn .bi{ margin-right:6px; vertical-align:-0.125em; }
 .badge-user{ background:color-mix(in oklab, var(--surface2), white 6%); color:var(--ink); font-weight:800; border-radius:999px; border:1px solid rgba(255,255,255,.22) }
 a.btn.btn-primary.btn-sm{ font-weight:800 }
-
-.filter{
-  background:color-mix(in oklab, var(--surface2), white 6%);
-  border:1px solid rgba(255,255,255,.18); border-radius:14px; padding:12px; box-shadow:0 10px 22px rgba(0,0,0,.32);
-}
+.filter{ background:color-mix(in oklab, var(--surface2), white 6%); border:1px solid rgba(255,255,255,.18); border-radius:14px; padding:12px; box-shadow:0 10px 22px rgba(0,0,0,.32); }
 .filter label{font-weight:800; font-size:.9rem}
-.filter .form-control, .filter .custom-select{
-  background:var(--surface3); color:var(--ink); border-radius:999px; border:1.5px solid rgba(255,255,255,.22);
-}
+.filter .form-control, .filter .custom-select{ background:var(--surface3); color:var(--ink); border-radius:999px; border:1.5px solid rgba(255,255,255,.22); }
 .filter .form-control::placeholder{color:#9fb0ba}
 .filter .form-control:focus{ box-shadow:0 0 0 .18rem rgba(0,173,181,.35) }
 .filter .btn-find,.filter .btn-clear{font-weight:900; border-radius:999px}
-
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(540px,1fr));gap:18px}
-.card{
-  position:relative; overflow:hidden;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--cardBg), black 8%), color-mix(in oklab, var(--surface2), white 4%));
+.card{ position:relative; overflow:hidden;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--cardBg), black 8%), color-mix(in oklab, var(--surface2), white 4%));
   color:#e9f2f5; border:1px solid var(--cardBorder); border-radius:18px; box-shadow:var(--shadow);
   transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
-.card::before{
-  content:""; position:absolute; inset:0 0 0 auto; width:6px; background:linear-gradient(180deg,var(--cardEdge),#1ea5ab);
-  left:0; right:auto; border-radius:18px 0 0 18px; opacity:.95;
-}
+.card::before{ content:""; position:absolute; inset:0 0 0 auto; width:6px; background:linear-gradient(180deg,var(--cardEdge),#1ea5ab);
+  left:0; right:auto; border-radius:18px 0 0 18px; opacity:.95; }
 .card:hover{ transform:translateY(-3px); box-shadow:var(--shadow-lg); border-color:rgba(255,255,255,.24) }
-.head{
-  display:flex;justify-content:space-between;align-items:flex-start;
-  background:color-mix(in oklab, var(--cardLight), black 2%); border-bottom:1px solid rgba(255,255,255,.12);
-  padding:12px 16px
-}
+.head{ display:flex;justify-content:space-between;align-items:flex-start; background:color-mix(in oklab, var(--cardLight), black 2%); border-bottom:1px solid rgba(255,255,255,.12); padding:12px 16px }
 .oid{font-weight:900;color:#bff6f8}
 .meta{color:#a9bcc7; font-weight:700}
 .line{display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px dashed rgba(255,255,255,.14)}
 .line:last-child{border-bottom:none}
 .item{font-weight:900;color:#e9fcff}
-.note{
-  margin-top:6px;font-size:.9rem;background:rgba(0,173,181,.08);color:#bfeef1;
-  border:1px dashed rgba(0,173,181,.35);border-radius:10px;padding:6px 8px
-}
+.note{ margin-top:6px;font-size:.9rem;background:rgba(0,173,181,.08);color:#bfeef1;
+  border:1px dashed rgba(0,173,181,.35);border-radius:10px;padding:6px 8px }
 .qty{min-width:48px;text-align:center;font-weight:900;background:var(--accent);color:#062b2f;border-radius:999px;padding:4px 10px}
-.summary{
-  display:flex;justify-content:space-between;padding:12px 16px 14px;font-weight:900;color:#cfeaed;
-  background:color-mix(in oklab, var(--surface3), white 4%); border-top:1px solid rgba(255,255,255,.12)
-}
+.summary{ display:flex;justify-content:space-between;padding:12px 16px 14px;font-weight:900;color:#cfeaed;
+  background:color-mix(in oklab, var(--surface3), white 4%); border-top:1px solid rgba(255,255,255,.12) }
 .actions{display:flex;gap:10px;background:color-mix(in oklab, var(--surface3), white 4%);border-top:1px solid rgba(255,255,255,.12);padding:12px}
 .btn-ready{flex:1;background:linear-gradient(180deg,#2ecc71,#22b862);color:#042913;font-weight:900;border-radius:12px;padding:10px;border:0}
 .btn-cancel{flex:1;background:linear-gradient(180deg,#ff6b6b,#e74c3c);color:#2a0202;font-weight:900;border-radius:12px;padding:10px;border:0}
 .btn-ready:hover,.btn-cancel:hover{filter:brightness(1.05)}
 .btn-slips{background:linear-gradient(180deg,#00ADB5,#27C8CF);color:#042e31;border:none;border-radius:10px;padding:6px 10px;font-weight:900}
 .btn-slips[disabled]{opacity:.45; cursor:not-allowed; background:color-mix(in oklab, var(--surface3), white 8%); color:#8da5ad}
-.pay-chip{
-  display:inline-flex; align-items:center; gap:6px; border-radius:999px; font-weight:900;
+.pay-chip{ display:inline-flex; align-items:center; gap:6px; border-radius:999px; font-weight:900;
   padding:4px 10px; margin-top:6px; color:#fff; text-shadow:0 1px 0 rgba(0,0,0,.25);
-  box-shadow:0 6px 14px rgba(0,0,0,.18);
-  background:linear-gradient(180deg,#2EA7FF,#1F7EE8);
-  border:1.5px solid #1669C9;
-}
+  box-shadow:0 6px 14px rgba(0,0,0,.18); background:linear-gradient(180deg,#2EA7FF,#1F7EE8); border:1.5px solid #1669C9; }
 .pay-chip:hover{ filter:brightness(1.06); }
-.pay-chip.cash{
-  background:linear-gradient(180deg,#22C55E,#16A34A);
-  border-color:#15803D;
-  color:#fff;
-}
+.pay-chip.cash{ background:linear-gradient(180deg,#22C55E,#16A34A); border-color:#15803D; color:#fff; }
 .empty{background:color-mix(in oklab, var(--surface2), white 8%);border:1px dashed rgba(255,255,255,.22);border-radius:12px;padding:24px;text-align:center}
 .psu-modal{ position:fixed; inset:0; display:none; z-index:3000; }
 .psu-modal.is-open{ display:block; }
@@ -296,19 +231,7 @@ a.btn.btn-primary.btn-sm{ font-weight:800 }
 #recipeModal #rcpBody{ color:#dbf7f9; }
 .rcp-section{ margin-bottom:14px; }
 .rcp-h{ font-weight:900; color:#9be9ee; margin-bottom:6px; }
-.rcp-steps{ counter-reset: stepnum; }
-.rcp-step{ margin:10px 0; }
-.rcp-step .rcp-stephead{ font-weight:900; color:#d6fbff; }
-.rcp-ing{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:.95rem; }
-.rcp-ing-row{ display:grid; grid-template-columns: 1fr 80px 80px 1fr; gap:10px; padding:4px 0; border-bottom:1px dashed rgba(255,255,255,.14); }
-.rcp-ing-row:last-child{ border-bottom:none; }
-.rcp-ing-head{ font-weight:800; color:#9be9ee; }
-
-@media (max-width:576px){
-  .topbar{flex-wrap:wrap; gap:8px}
-  .topbar-actions{width:100%; justify-content:flex-end}
-  .lb__btn{ padding:6px 8px } .lb__navbtn{ padding:8px 12px }
-}
+.rcp-pre{ white-space:pre-wrap; line-height:1.7; background:#101720; border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:12px; color:#eaf2ff; font-size:14.5px; }
 
 /* ปุ่ม "ดูสูตร…" */
 .btn-recipe,
@@ -347,178 +270,31 @@ body, .table, .btn, input, label, .badge { font-size:14.5px !important; }
 .card::before{ background: var(--brand-500) !important; }
 .badge-user { background: var(--surface3) !important; border:1px solid rgba(255,255,255,.12) !important; color:#eaf2ff !important; }
 .btn-primary, .filter .btn-find, .topbar .btn-primary {
-  background: var(--brand-500) !important;
-  border: 1px solid #1e6acc !important;
-  color: #fff !important;
-  font-weight: 800 !important;
-  box-shadow: none !important;
+  background: var(--brand-500) !important; border: 1px solid #1e6acc !important; color: #fff !important; font-weight: 800 !important; box-shadow: none !important;
 }
 .btn-primary:hover{ filter:brightness(1.06); }
 .filter .form-control, .filter .custom-select{
-  background: var(--surface3) !important;
-  border: 1px solid rgba(255,255,255,.12) !important;
-  color: var(--ink) !important;
+  background: var(--surface3) !important; border: 1px solid rgba(255,255,255,.12) !important; color: var(--ink) !important;
 }
-.note{
-  background: var(--surface3) !important;
-  border: 1px dashed rgba(255,255,255,.22) !important;
-  color:#dcecf9 !important;
+.note{ background: var(--surface3) !important; border: 1px dashed rgba(255,255,255,.22) !important; color:#dcecf9 !important; }
+
+/* ===== PSU Confirm (custom confirm modal) ===== */
+.psu-cfm{position:fixed;inset:0;z-index:5000;display:none}
+.psu-cfm.is-open{display:block}
+.psu-cfm__backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+.psu-cfm__dialog{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(520px,96vw);background:var(--surface);color:var(--ink);
+  border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:none
 }
-/* ===== Match front_store look & spacing (drop-in override) ===== */
-
-/* ตัวแปรหลักเท่ากับหน้า front_store (Minimal • Clean) */
-:root{
-  --bg1:#11161b; --bg2:#141b22;
-  --surface:#1a2230; --surface2:#192231; --surface3:#202a3a;
-  --ink:#e9eef6; --ink-dim:#b9c6d6;
-  --brand-500:#3aa3ff; --brand-400:#7cbcfd; --brand-300:#a9cffd;
-  --radius:10px;
-}
-
-/* ขนาดตัวอักษรฐาน */
-body, .table, .btn, input, label, .badge { font-size:14.5px !important; }
-
-/* พื้นหลัง + โทน */
-body{
-  background: linear-gradient(180deg,var(--bg1),var(--bg2)) !important;
-  color: var(--ink) !important;
-}
-
-/* โครงหน้า/การ์ด/โมดัล: เรียบ, ขอบจาง, มุมโค้ง 10px */
-.topbar, .filter, .card, .psu-modal__dialog{
-  background: var(--surface) !important;
-  border: 1px solid rgba(255,255,255,.08) !important;
-  border-radius: var(--radius) !important;
-  box-shadow: none !important;
-}
-
-/* แถบหัวข้อใน card + สรุป + แถบปุ่ม ให้ตรงโทน */
-.head, .summary, .actions{
-  background: var(--surface2) !important;
-  border-color: rgba(255,255,255,.10) !important;
-}
-
-/* ปรับ “ระยะห่าง” ให้เสมอกับ front_store */
-.topbar{ padding:10px 14px !important; }
-.wrap{ max-width:1400px; margin:26px auto; padding:0 16px; }
-
-/* ฟอร์มตัวกรอง: padding/gap เสมอกัน */
-.filter{ padding:12px !important; }
-.filter .form-control, .filter .custom-select{
-  background: var(--surface3) !important;
-  border: 1px solid rgba(255,255,255,.12) !important;
-  color: var(--ink) !important;
-  border-radius: 12px !important;
-}
-.filter .btn-find, .btn-primary, .topbar .btn-primary{
-  background: var(--brand-500) !important;
-  border: 1px solid #1e6acc !important;
-  color:#fff !important;
-  font-weight:800 !important;
-  box-shadow:none !important;
-}
-.filter .btn-clear{ border-radius:12px !important; }
-
-/* กริดการ์ด: gap เท่ากับหน้า front_store (แน่นขึ้นเล็กน้อย) */
-.grid{ gap:10px !important; }
-
-/* Card spacing */
-.card{ border-radius: var(--radius) !important; }
-.head{ padding:10px 12px !important; }
-.line{ padding:8px 12px !important; }
-.summary{ padding:10px 12px !important; }
-.actions{ padding:10px 12px !important; gap:10px !important; }
-
-/* ป้ายเลข/ชื่อในหัวการ์ด */
-.oid{ font-weight:900; color:#fff !important; }
-.meta{ color: var(--ink-dim) !important; font-weight:700; }
-
-/* ป้ายชำระเงิน: โทนแบบ front_store */
-.pay-chip{
-  background: var(--brand-500) !important;
-  border: 1px solid #1e6acc !important;
-  color:#08121f !important;
-  text-shadow:none !important;
-  box-shadow:none !important;
-}
-.pay-chip.cash{
-  background: linear-gradient(180deg,#22C55E,#16A34A) !important;
-  border-color:#15803D !important;
-  color:#fff !important;
-}
-
-/* ปุ่มสถานะ (พร้อม/ยกเลิก): ขนาดและน้ำหนักให้พอดี */
-.btn-ready, .btn-cancel{
-  border-radius:12px !important;
-  padding:10px !important;
-  font-weight:900 !important;
-  border:0 !important;
-}
-
-/* ปุ่ม “ดูสลิป” และ “ดูสูตร…” โทนเดียวกับ CTA ของหน้า front */
-.btn-slips,
-.btn-recipe,
-.btn-recipe.btn-outline-primary{
-  background: var(--brand-500) !important;
-  border: 1px solid #1e6acc !important;
-  color:#fff !important;
-  font-weight:900 !important;
-  border-radius:12px !important;
-  box-shadow:none !important;
-  text-shadow:none !important;
-}
-
-/* pill จำนวน */
-.qty{
-  min-width:46px !important;
-  padding:4px 10px !important;
-  border-radius:999px !important;
-  background: var(--brand-500) !important;
-  color:#071627 !important;
-}
-
-/* กล่องหมายเหตุ */
-.note{
-  background: var(--surface3) !important;
-  border: 1px dashed rgba(255,255,255,.22) !important;
-  color:#dcecf9 !important;
-  border-radius:10px !important;
-  padding:6px 8px !important;
-  margin-top:6px !important;
-}
-
-/* Badge, user chip */
-.badge-user{
-  background: var(--surface3) !important;
-  border: 1px solid rgba(255,255,255,.12) !important;
-  color:#eaf2ff !important;
-  border-radius:999px !important;
-  font-weight:800 !important;
-}
-
-/* สถานะ badge */
-.badge{ font-weight:800 !important; }
-
-/* โมดัลสลิป/สูตร: มุมโค้งและขอบ */
-.psu-modal__dialog{ border-radius: var(--radius) !important; border:1px solid rgba(255,255,255,.08) !important; }
-.psu-modal__close{ color:#cfe0ff !important; }
-
-/* Lightbox ปรับปุ่มให้เข้าชุด */
-.lb__btn, .lb__navbtn{
-  background: rgba(255,255,255,.12) !important;
-  border: 1px solid rgba(255,255,255,.25) !important;
-  color:#e9f2f5 !important;
-  border-radius:10px !important;
-  font-weight:800 !important;
-}
-
-/* ลิงก์สีในภาพรวมให้กลืนธีม */
-a{ color: var(--brand-400); }
-a:hover{ color: var(--brand-300); }
-
-/* ปิด drop-shadow/เงาหนัก */
-.card::before{ background: var(--brand-500) !important; } /* เส้นนำสายตาซ้ายคงไว้แต่โทนเดียว */
-
+.psu-cfm__head{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.10)}
+.psu-cfm__title{margin:0;font-weight:900;color:var(--ink)}
+.psu-cfm__body{padding:14px 16px;white-space:pre-line;color:var(--ink-dim)}
+.psu-cfm__actions{padding:12px 16px;border-top:1px solid rgba(255,255,255,.10);display:flex;gap:10px;justify-content:flex-end}
+.psu-btn{border-radius:10px;padding:8px 14px;font-weight:900;border:1px solid transparent}
+.psu-btn--muted{background:var(--surface3);border:1px solid rgba(255,255,255,.14);color:var(--ink)}
+.psu-btn--danger{background:linear-gradient(180deg,#ff6b6b,#d9534f);border:1px solid #b44441;color:#fff}
+.psu-btn:focus{outline:3px solid rgba(46,167,255,.45);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -668,7 +444,6 @@ a:hover{ color: var(--brand-300); }
     <button type="button" class="psu-modal__close" id="slipClose" aria-label="Close">&times;</button>
     <div class="p-3 p-md-4">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <!-- ⭐ แสดงเลข seq ในหัวโมดัล -->
         <div class="h5 mb-0">สลิปการชำระเงิน <span id="slipTitleOid"></span></div>
         <span class="badge badge-primary" id="slipCountBadge"></span>
       </div>
@@ -712,9 +487,54 @@ a:hover{ color: var(--brand-300); }
 
 <script>
 /** ส่งแมพ order_id -> seq ไป JS (ใช้ตอนเปิดโมดัล/เรนเดอร์ใหม่) **/
-window.seqMap = <?=
-  json_encode($seq_map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-?>;
+window.seqMap = <?= json_encode($seq_map, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
+
+/* ===== PSU Confirm (Promise) ===== */
+function psuConfirm({title='ยืนยัน', message='', okText='ยืนยัน', cancelText='ยกเลิก', danger=true}={}){
+  return new Promise((resolve)=>{
+    const box = document.getElementById('psuConfirm');
+    const bd  = box.querySelector('.psu-cfm__backdrop');
+    const tEl = document.getElementById('psuCfmTitle');
+    const mEl = document.getElementById('psuCfmMsg');
+    const btnOk = document.getElementById('psuCfmOk');
+    const btnNo = document.getElementById('psuCfmCancel');
+
+    tEl.textContent = title;
+    mEl.textContent = message;
+    btnOk.textContent = okText;
+    btnNo.textContent = cancelText;
+    btnOk.classList.toggle('psu-btn--danger', !!danger);
+
+    function close(v){
+      box.classList.remove('is-open');
+      document.body.style.overflow = '';
+      cleanup();
+      resolve(v);
+    }
+    function onKey(e){
+      if(e.key==='Escape'){ e.preventDefault(); close(false); }
+      if(e.key==='Enter'){ e.preventDefault(); close(true); }
+    }
+    function cleanup(){
+      bd.removeEventListener('click', onBackdrop);
+      btnNo.removeEventListener('click', onNo);
+      btnOk.removeEventListener('click', onYes);
+      document.removeEventListener('keydown', onKey);
+    }
+    function onBackdrop(){ close(false); }
+    function onNo(){ close(false); }
+    function onYes(){ close(true); }
+
+    bd.addEventListener('click', onBackdrop);
+    btnNo.addEventListener('click', onNo);
+    btnOk.addEventListener('click', onYes);
+    document.addEventListener('keydown', onKey);
+
+    box.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    btnOk.focus();
+  });
+}
 
 /** Poll เฉพาะกรณี: ดู pending แบบไม่ใส่ตัวกรอง **/
 const url=new URL(location.href);
@@ -726,23 +546,17 @@ let lastSince=''; const knownStatus={};
 
 function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function pad3(n){ n = parseInt(n,10)||0; return (n<10?'00':(n<100?'0':''))+n; }
-
 function setPayChip(el,isTransfer){
   let chip=el.querySelector('.pay-chip');
   if(!chip){chip=document.createElement('div'); chip.className='pay-chip'; el.appendChild(chip);}
   chip.classList.toggle('cash',!isTransfer);
   chip.textContent=(isTransfer?'💳 โอนเงิน':'💵 เงินสด');
 }
-
-/** เรนเดอร์การ์ดใหม่ — ใช้ seq ถ้ามี (จาก API หรือ seqMap) */
 function renderCard(order,lines){
   const grid=document.getElementById('grid'); const id=order.order_id;
   let card=document.querySelector(`[data-order-id="${id}"]`); if(card) card.remove();
   const slipCount=Number(order.slip_count||0), isTransfer=slipCount>0;
-
-  // หา seq: 1) จาก order.order_seq (ถ้ามีใน API), 2) จาก seqMap ที่ส่งมาจาก PHP, 3) fallback = '#id'
   let seq = (order.order_seq!=null) ? pad3(order.order_seq) : (window.seqMap && window.seqMap[id]) ? window.seqMap[id] : ('#'+id);
-
   const div=document.createElement('div'); div.className='card'; div.setAttribute('data-order-id',id); div.tabIndex=0; div.setAttribute('aria-label','ออเดอร์ '+seq);
   div.innerHTML=`
     <div class="head">
@@ -789,12 +603,11 @@ function renderCard(order,lines){
   `;
   grid.prepend(div);
 }
-
 function hideCard(id){ const card=document.querySelector(`[data-order-id="${id}"]`); if(!card) return; card.style.transition='opacity .2s ease, transform .2s ease'; card.style.opacity='0'; card.style.transform='translateY(-6px)'; setTimeout(()=>card.remove(),200); }
 
 async function poll(){
   try{
-    const qs=lastSince?('?since='+encodeURIComponent(lastSince)):''; 
+    const qs=lastSince?('?since='+encodeURIComponent(lastSince)):'';
     const r=await fetch(FEED_URL+qs,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
     const data=await r.json(); if(data.now) lastSince=data.now;
 
@@ -812,9 +625,7 @@ async function poll(){
               const rr=await fetch(GET_URL(id),{cache:'no-store'});
               const j=await rr.json();
               if(j&&j.ok){
-                // ถ้า API มี order_seq ก็จะถูกใช้ใน renderCard()
                 renderCard(j.order, j.lines||[]);
-                // อัปเดต seqMap (กันกรณี API ส่ง order_seq มา)
                 if(j.order && j.order.order_seq!=null){ window.seqMap = window.seqMap||{}; window.seqMap[id]=pad3(j.order.order_seq); }
               }
             }catch(e){}
@@ -841,14 +652,20 @@ document.addEventListener('submit', async (e)=>{
   const btn  = form.querySelector('button[type="submit"]');
   const act  = form.querySelector('input[name="action"]')?.value || '';
 
-  // ✅ ยืนยันก่อนยกเลิก
   if (act === 'canceled') {
     const oid = card?.getAttribute('data-order-id') || '';
     const seq = (window.seqMap && (window.seqMap[oid] || window.seqMap[String(oid)]))
                 ? (window.seqMap[oid] || window.seqMap[String(oid)])
                 : ('#' + oid);
-    const ok = confirm(`ยืนยันยกเลิกออเดอร์ ${seq} ?\nสถานะจะเปลี่ยนเป็น "canceled"`);
-    if (!ok) return; // ผู้ใช้กดยกเลิก -> ไม่ส่งคำขอ
+
+    const ok = await psuConfirm({
+      title: 'ยืนยันยกเลิกออเดอร์',
+      message: `ยืนยันยกเลิกออเดอร์ ${seq} ?\nสถานะจะเปลี่ยนเป็น "canceled"`,
+      okText: 'ยืนยัน',
+      cancelText: 'กลับ',
+      danger: true
+    });
+    if (!ok) return;
   }
 
   if (btn) btn.disabled = true;
@@ -872,7 +689,9 @@ document.addEventListener('submit', async (e)=>{
 });
 
 if(!hasFilters && status==='pending'){ window.addEventListener('load', poll); }
+</script>
 
+<script>
 /* ===== Slips Modal ===== */
 const slipModal=document.getElementById('slipModal'), slipClose=document.getElementById('slipClose'), slipZone=document.getElementById('slipZone'), slipMsg=document.getElementById('slipMsg'), slipTitleOid=document.getElementById('slipTitleOid'), slipCountBadge=document.getElementById('slipCountBadge');
 function openSlipModal(){ slipModal.classList.add('is-open'); document.body.style.overflow='hidden'; }
@@ -883,7 +702,6 @@ document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closeSlipModal()
 
 async function loadSlips(oid){
   slipZone.innerHTML=''; slipMsg.textContent='กำลังโหลด...';
-  // ⭐ โชว์ seq ในหัวโมดัล ถ้ามี
   const seq = (window.seqMap && (window.seqMap[String(oid)]||window.seqMap[oid])) ? (window.seqMap[String(oid)]||window.seqMap[oid]) : ('#'+oid);
   slipTitleOid.textContent=seq;
   slipCountBadge.textContent='';
@@ -906,20 +724,10 @@ async function loadSlips(oid){
   }catch(e){ slipMsg.innerHTML='<div class="alert alert-danger">เชื่อมต่อไม่สำเร็จ</div>'; }
 }
 document.addEventListener('click',(e)=>{ const btn=e.target.closest('.btn-slips'); if(!btn) return; const oid=btn.getAttribute('data-oid'); if(!oid) return; loadSlips(oid); });
-
-/* ===== Keyboard shortcuts ===== */
-document.addEventListener('keydown',(e)=>{
-  if(e.key === '/'){ const q=document.querySelector('input[name="q"]'); if(q){ e.preventDefault(); q.focus(); q.select(); } return; }
-  const card=document.activeElement?.closest?.('.card'); if(!card) return;
-  if(e.key.toLowerCase()==='r' || e.key.toLowerCase()==='x'){
-    const isReady=e.key.toLowerCase()==='r';
-    const form=card.querySelector(`form.js-status input[value="${isReady?'ready':'canceled'}"]`)?.closest('form'); if(form){ e.preventDefault(); form.requestSubmit(); }
-  }
-});
 </script>
 
 <script>
-/* ===== Recipe Viewer (เดิม) ===== */
+/* ===== Recipe Viewer (ตารางใหม่ recipes: แสดงข้อความตรง ๆ) ===== */
 const recipeModal=document.getElementById('recipeModal'), recipeClose=document.getElementById('recipeClose'), rcpTitle=document.getElementById('rcpTitle'), rcpBody=document.getElementById('rcpBody');
 function openRecipeModal(){ recipeModal.classList.add('is-open'); document.body.style.overflow='hidden'; }
 function closeRecipeModal(){ recipeModal.classList.remove('is-open'); document.body.style.overflow=''; }
@@ -927,33 +735,27 @@ recipeClose.addEventListener('click', closeRecipeModal);
 document.querySelector('#recipeModal .psu-modal__backdrop').addEventListener('click', closeRecipeModal);
 document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closeRecipeModal(); });
 
-function fmtIngRow(name,qty,unit,note){ return `<div class="rcp-ing-row"><div>${escapeHtml(name||'')}</div><div>${escapeHtml(qty||'')}</div><div>${escapeHtml(unit||'')}</div><div>${note?'('+escapeHtml(note)+')':''}</div></div>`; }
 function renderRecipe(j){
-  rcpBody.innerHTML=''; if(!j||!j.ok){ rcpBody.innerHTML='<div class="alert alert-danger">โหลดสูตรไม่สำเร็จ</div>'; return; }
-  const title=(j.menu&&(j.menu.title||j.menu.name))?(j.menu.title||j.menu.name):'สูตรเมนู'; rcpTitle.textContent='— '+title;
-  const parts=[];
-  if(Array.isArray(j.common)&&j.common.length){
-    parts.push(`<div class="rcp-section"><div class="rcp-h">ส่วนผสม</div><div class="rcp-ing">
-      <div class="rcp-ing-row rcp-ing-head"><div>รายการ</div><div>จำนวน</div><div>หน่วย</div><div>หมายเหตุ</div></div>
-      ${j.common.map(it=>fmtIngRow(it.name,it.qty,it.unit,it.note)).join('')}
-    </div></div>`);
-  }
-  if(Array.isArray(j.steps)&&j.steps.length){
-    parts.push('<div class="rcp-section rcp-steps">');
-    j.steps.forEach(step=>{
-      parts.push(`<div class="rcp-step"><div class="rcp-stephead">${step.step_no}. ${escapeHtml(step.step_text||'')}</div>
-        ${Array.isArray(step.ingredients)&&step.ingredients.length?`<div class="rcp-ing mt-2">${step.ingredients.map(it=>fmtIngRow(it.name,it.qty,it.unit,it.note)).join('')}</div>`:''}
-      </div>`);
-    });
-    parts.push('</div>');
-  }else{ parts.push('<div class="text-muted">ยังไม่มีขั้นตอนในสูตรนี้</div>'); }
-  rcpBody.innerHTML=parts.join('');
+  rcpBody.innerHTML='';
+  if(!j||!j.ok){ rcpBody.innerHTML='<div class="alert alert-danger">โหลดสูตรไม่สำเร็จ</div>'; return; }
+  const title = (j.recipe && j.recipe.title) ? j.recipe.title : (j.menu && j.menu.name ? j.menu.name : 'สูตรเมนู');
+  const text  = (j.recipe && typeof j.recipe.text === 'string') ? j.recipe.text : '';
+  rcpTitle.textContent='— ' + (title||'สูตรเมนู');
+  rcpBody.innerHTML = `<div class="rcp-section"><pre class="rcp-pre">${escapeHtml(text)}</pre></div>`;
 }
+
 async function loadRecipe(menuId){
-  rcpBody.innerHTML='<div class="text-muted">กำลังโหลด...</div>'; rcpTitle.textContent=''; openRecipeModal();
-  try{ const r=await fetch(`back_store.php?action=recipe&menu_id=${encodeURIComponent(menuId)}`,{cache:'no-store'}); const j=await r.json(); renderRecipe(j); }
-  catch(e){ rcpBody.innerHTML='<div class="alert alert-danger">เชื่อมต่อไม่สำเร็จ</div>'; }
+  rcpBody.innerHTML='<div class="text-muted">กำลังโหลด...</div>'; rcpTitle.textContent='';
+  openRecipeModal();
+  try{
+    const r=await fetch(`back_store.php?action=recipe&menu_id=${encodeURIComponent(menuId)}`,{cache:'no-store'});
+    const j=await r.json();
+    renderRecipe(j);
+  }catch(e){
+    rcpBody.innerHTML='<div class="alert alert-danger">เชื่อมต่อไม่สำเร็จ</div>';
+  }
 }
+
 document.addEventListener('click',(e)=>{ const b=e.target.closest('.btn-recipe'); if(!b) return; const mid=b.getAttribute('data-menu-id'); if(!mid) return; loadRecipe(mid); });
 </script>
 
@@ -987,6 +789,19 @@ document.addEventListener('click',(e)=>{ const b=e.target.closest('.btn-recipe')
   wrap.addEventListener('pointercancel',()=> dragging=false);
 })();
 </script>
+
+<!-- ===== PSU Confirm Modal HTML ===== -->
+<div id="psuConfirm" class="psu-cfm" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="psu-cfm__backdrop"></div>
+  <div class="psu-cfm__dialog" role="document">
+    <div class="psu-cfm__head"><h5 class="psu-cfm__title" id="psuCfmTitle">ยืนยัน</h5></div>
+    <div class="psu-cfm__body" id="psuCfmMsg">ข้อความยืนยัน</div>
+    <div class="psu-cfm__actions">
+      <button type="button" class="psu-btn psu-btn--muted" id="psuCfmCancel">ยกเลิก</button>
+      <button type="button" class="psu-btn psu-btn--danger" id="psuCfmOk">ยืนยัน</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

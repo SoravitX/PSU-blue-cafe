@@ -1,5 +1,5 @@
 <?php
-// admin/promo_detail.php — ดู/แก้ไขโปรโมชัน + ผูก/ถอดเมนู + เปิด/ปิดโปร (Dark Teal Theme)
+// admin/promo_detail.php — ดู/แก้ไขโปรโมชัน + ผูก/ถอดเมนู + เปิด/ปิดโปร (Font_Store Blue / No Shadows)
 declare(strict_types=1);
 session_start();
 require __DIR__ . '/../db.php';
@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $msg = 'อัปเดตสถานะโปรโมชันเรียบร้อย'; $cls = 'success';
   }
 
-  // (2) เพิ่มเมนูเข้ากับโปรโมชัน (ใช้ UNIQUE KEY uk_promo_menu กันซ้ำ)
+  // (2) เพิ่มเมนูเข้ากับโปรโมชัน
   if ($action === 'add_menu') {
     $menu_id = (int)($_POST['menu_id'] ?? 0);
     if ($menu_id > 0) {
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 }
 
-/* ========== ดึงเมนูที่อยู่ในโปรนี้แล้ว ========== */
+/* ========== เมนูในโปรนี้แล้ว ========== */
 $menus_in = [];
 $stmt = $conn->prepare("
   SELECT m.menu_id, m.name, m.price, m.image, c.category_name
@@ -81,7 +81,7 @@ $res = $stmt->get_result();
 while($r = $res->fetch_assoc()) $menus_in[] = $r;
 $stmt->close();
 
-/* ========== ดึงเมนูที่ยังไม่อยู่ในโปรนี้ (ตัวเลือกสำหรับเพิ่ม) ========== */
+/* ========== เมนูที่ยังไม่อยู่ในโปรนี้ (ตัวเลือกสำหรับเพิ่ม) ========== */
 $q = trim((string)($_GET['q'] ?? ''));
 if ($q !== '') {
   $stmt = $conn->prepare("
@@ -117,44 +117,46 @@ $stmt->close();
 <link rel="stylesheet"
  href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
+/* ===== Font_Store Blue Theme (no shadows) ===== */
 :root{
   --text-strong:#F4F7F8; --text-normal:#E6EBEE; --text-muted:#B9C2C9;
 
-  --bg-grad1:#222831; /* background */
-  --bg-grad2:#393E46;
+  --bg-grad1:#1b2026;   /* background */
+  --bg-grad2:#252b33;
 
-  --surface:#1C2228;  /* cards */
-  --surface-2:#232A31;
-  --surface-3:#2B323A;
+  --surface:#12171d;    /* cards */
+  --surface-2:#171d24;
+  --surface-3:#1c232b;
 
   --ink:#F4F7F8; --ink-muted:#CFEAED;
 
-  --brand-900:#EEEEEE; --brand-700:#BFC6CC;
-  --brand-500:#00ADB5; /* accent */
-  --brand-400:#27C8CF; --brand-300:#73E2E6;
+  /* Blue accents (Font_Store) */
+  --brand-900:#EAF3FF; 
+  --brand-700:#C9DCF9;
+  --brand-500:#2EA7FF; /* primary */
+  --brand-400:#1F7EE8; /* primary darker */
+  --brand-300:#73C0FF;
 
-  --ok:#2ecc71; --danger:#e53935;
-
-  --shadow-lg:0 22px 66px rgba(0,0,0,.55);
-  --shadow:   0 14px 32px rgba(0,0,0,.42);
+  --ok:#22C55E; 
+  --danger:#E53935;
 }
 
 html,body{height:100%}
 body{
   margin:0;
   background:
-    radial-gradient(900px 360px at 110% -10%, rgba(39,200,207,.18), transparent 65%),
+    radial-gradient(900px 360px at 110% -10%, rgba(46,167,255,.16), transparent 60%),
     linear-gradient(135deg,var(--bg-grad1),var(--bg-grad2));
   color:var(--text-strong);
-  font-family:"Segoe UI",Tahoma,Arial;
+  font-family:"Segoe UI",Tahoma,Arial,sans-serif;
 }
 .wrap{max-width:1100px; margin:22px auto; padding:0 14px}
 
 /* Topbar */
 .topbar{
   position:sticky; top:0; z-index:50; padding:12px 16px; border-radius:14px;
-  background:rgba(28,34,40,.85); border:1px solid rgba(255,255,255,.08);
-  box-shadow:var(--shadow); backdrop-filter: blur(6px);
+  background:rgba(18,23,29,.88); border:1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(6px);
 }
 .topbar .btn{ border-radius:12px }
 
@@ -164,7 +166,6 @@ body{
   color: var(--ink);
   border:1px solid rgba(255,255,255,.06);
   border-radius:16px;
-  box-shadow: var(--shadow);
   padding:16px;
 }
 .cardx .muted{ color:var(--text-muted) }
@@ -180,25 +181,24 @@ body{
   background:rgba(229,57,53,.12); border-color:rgba(229,57,53,.35); color:#ff9f9c
 }
 
-/* Buttons */
+/* Buttons — ตัวอักษรสีขาวทั้งหมด */
 .btn-ghost{
-  background: linear-gradient(180deg, var(--brand-500), #07949B);
-  border:0; color:#061217; font-weight:900; border-radius:12px;
-  box-shadow:0 10px 26px rgba(0,173,181,.25);
+  background: linear-gradient(180deg, var(--brand-500), var(--brand-400));
+  border:0; color:#fff; font-weight:900; border-radius:12px;
 }
 .btn-ghost:hover{ filter:brightness(1.05) }
 .btn-toggle.btn-success{
-  background:linear-gradient(180deg,#2ecc71,#239e57); border:0; color:#061217; border-radius:12px
+  background:linear-gradient(180deg,#22c55e,#16a34a); border:0; color:#fff; border-radius:12px;
 }
 .btn-toggle.btn-danger{
-  background:linear-gradient(180deg,#ff6b6b,#e53935); border:0; color:#fff; border-radius:12px
+  background:linear-gradient(180deg,#ff6b6b,#e53935); border:0; color:#fff; border-radius:12px;
 }
 .btn-outline-light{
   color:var(--text-normal); border-color:rgba(255,255,255,.25); border-radius:12px; font-weight:800
 }
 .btn-outline-light:hover{ background:rgba(255,255,255,.06) }
 .btn-primary{
-  background:linear-gradient(180deg,#3aa3ff,#1f7ee8); border:0; border-radius:12px; font-weight:900
+  background:linear-gradient(180deg,var(--brand-500),var(--brand-400)); border:0; border-radius:12px; font-weight:900; color:#fff;
 }
 
 /* Inputs */
@@ -211,64 +211,57 @@ body{
 .searchbox::placeholder, .form-control::placeholder{ color:#9aa3ab }
 .searchbox:focus, .form-control:focus, .custom-select:focus{
   border-color: var(--brand-500);
-  box-shadow: 0 0 0 .2rem rgba(0,173,181,.25);
-  background:#2F373F;
+  box-shadow: none; /* no glow */
+  outline: 3px solid rgba(46,167,255,.25);
+  outline-offset: 0;
+  background:#202833;
 }
 
 /* Table */
 .table thead th{
-  background:#222a31; color:var(--brand-300);
+  background:#1a222b; color:var(--brand-300);
   border-bottom:2px solid rgba(255,255,255,.08); font-weight:800
 }
 .table td, .table th{
   border-color:rgba(255,255,255,.06)!important; color:var(--text-normal); vertical-align: middle !important;
 }
-.table tbody tr:hover td{ background:#20262d; color:var(--text-strong) }
+.table tbody tr:hover td{ background:#1d2630; color:var(--text-strong) }
 
 /* Alerts */
-.alert-success{background:rgba(46,204,113,.12);color:#7ee2a6;border:1px solid rgba(46,204,113,.35); border-radius:12px}
-.alert-danger {background:rgba(229,57,53,.12); color:#ff9f9c;border:1px solid rgba(229,57,53,.35); border-radius:12px}
+.alert-success{background:rgba(34,197,94,.12);color:#b6f3c8;border:1px solid rgba(34,197,94,.35); border-radius:12px}
+.alert-danger {background:rgba(229,57,53,.12); color:#ffb3b1;border:1px solid rgba(229,57,53,.35); border-radius:12px}
 
 /* Minor helpers */
 .h-title{ color:var(--brand-900); font-weight:900 }
 .small-note{ color:var(--text-muted) }
+
 /* ===== Force white text in <select> dropdowns on dark theme ===== */
 select,
 .custom-select,
 .form-control {
-  color: var(--text-strong) !important;        /* ข้อความในช่อง */
+  color: var(--text-strong) !important;
 }
-
-/* ข้อความภายในรายการตัวเลือก */
 select option,
 .custom-select option,
 select optgroup {
-  color: var(--text-strong) !important;        /* ให้เป็นสีขาว */
-  background-color: var(--surface-3) !important; /* พื้นหลังดรอปดาวน์ */
+  color: var(--text-strong) !important;
+  background-color: var(--surface-3) !important;
 }
-
-/* เมื่อเลือกอยู่ (บางเบราว์เซอร์รองรับ) */
 select option:checked,
 .custom-select option:checked {
   color: #fff !important;
   background: linear-gradient(180deg, #2a9aa1, #137d84) !important;
 }
-
-/* รายการที่ disabled ให้ดูซีดลงหน่อย */
 select option[disabled],
 .custom-select option[disabled] {
   color: var(--text-muted) !important;
 }
-
-/* Fix บน WebKit/Chromium (Edge/Chrome) ให้ตัวอักษรขาวชัด */
 @supports (-webkit-appearance: none) {
   select,
   .custom-select {
     -webkit-text-fill-color: var(--text-strong) !important;
   }
 }
-
-/* ถ้าใช้ size / multiple (list ยาวแบบในภาพ) ให้ช่องสูงอ่านง่ายขึ้น */
 select[size],
 select[multiple] {
   background-color: var(--surface-3);
@@ -276,6 +269,8 @@ select[multiple] {
   color: var(--text-strong);
 }
 
+/* ตัดเงาทั้งหมดในปุ่ม/การ์ด/ท็อปบาร์ */
+.btn, .cardx, .topbar { box-shadow: none !important; }
 </style>
 </head>
 <body>

@@ -366,6 +366,44 @@ body,.table,.btn,input,label,.badge,.chip,.note{ font-size:14.5px !important; }
 .slip-item{ background: var(--surface-3) !important; border: 1px solid rgba(255,255,255,.12) !important; }
 .btn-close-slim{ color:#fff !important; }
 #toTop .btn{ background: var(--brand-500) !important; border: 1px solid #1e6acc !important; color:#fff !important; font-weight:900 !important; box-shadow:none !important; }
+/* กันพื้นที่ด้านขวาให้ badge มุมขวา ไม่ให้ไปทับราคา */
+.card-order{ --badge-w:72px; }
+.id-badge{ right:12px; top:10px; z-index:2; } /* คง absolute ได้ */
+.co-head{ padding-right: calc(var(--badge-w) + 8px) !important; }
+.co-body{ padding-right: calc(var(--badge-w) / 2) !important; }
+
+@media (max-width: 768px){
+  .card-order{ --badge-w:56px; } /* จอเล็ก ลดความกว้างที่กันไว้ */
+}
+/* ซ่อนรหัสออเดอร์เต็มรูปแบบ (YYMMDD-###) ในหัวการ์ด */
+.oid{ display:none !important; }/* กันพื้นที่หัวการ์ดด้านซ้ายให้ริบบอน ไม่ให้ทับข้อความ */
+.card-order{ --ribbon-w:100px; } /* กว้างโดยประมาณของริบบอน */
+.co-head{ padding-left: calc(var(--ribbon-w) + 12px) !important; }
+
+/* จอเล็ก ลดพื้นที่กัน */
+@media (max-width: 576px){
+  .card-order{ --ribbon-w:84px; }
+}
+/* ===== Force colors for payment badges (cash = green, transfer = blue) ===== */
+.card-order .badges .badge-pay.pay-cash{
+  background: linear-gradient(180deg,#22c55e,#16a34a) !important; /* เขียว */
+  border-color:#15803d !important;
+  color:#ffffff !important;
+  text-shadow:none !important;
+}
+.card-order .badges .badge-pay.pay-transfer{
+  background: linear-gradient(180deg,#3aa3ff,#1f7ee8) !important; /* ฟ้า */
+  border-color:#1669c9 !important;
+  color:#ffffff !important;
+  text-shadow:none !important;
+}
+
+/* เคยมีแค่เปลี่ยน "สีตัวอักษร" ของคลาสสั้น ๆ ไว้ก่อนหน้า ให้ทับไปเลย */
+.card-order .badges .badge-pay.pay-cash .bi,
+.card-order .badges .badge-pay.pay-transfer .bi{
+  color:inherit !important; /* ไอคอนเป็นสีเดียวกับตัวอักษร */
+}
+
 </style>
 </head>
 <body>
@@ -525,11 +563,7 @@ body,.table,.btn,input,label,.badge,.chip,.note{ font-size:14.5px !important; }
               </button>
             <?php endif; ?>
 
-            <div class="badge-status <?= $statusClass ?>">
-              <span class="dot"></span>
-              <i class="bi <?= $o['status']==='ready' ? 'bi-check-circle' : ($o['status']==='canceled'?'bi-x-circle':'bi-hourglass') ?>"></i>
-              <?= h(ucfirst($o['status'])) ?>
-            </div>
+           
           </div>
         </div>
 
