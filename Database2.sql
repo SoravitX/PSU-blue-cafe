@@ -148,9 +148,9 @@ CREATE TABLE IF NOT EXISTS `orders` (
   KEY `idx_orders_updated` (`updated_at`),
   CONSTRAINT `fk_orders_promo` FOREIGN KEY (`promo_id`) REFERENCES `promotions` (`promo_id`),
   CONSTRAINT `fk_orders_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=134 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=135 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table psu_blue_cafe.orders: ~124 rows (approximately)
+-- Dumping data for table psu_blue_cafe.orders: ~134 rows (approximately)
 INSERT INTO `orders` (`order_id`, `user_id`, `order_time`, `order_date`, `order_seq`, `status`, `payment_method`, `total_price`, `updated_at`, `promo_id`, `discount_amount`, `final_total`) VALUES
 	(1, 3, '2025-09-27 01:24:08', '2025-09-27', 1, 'ready', 'transfer', 40.00, '2025-09-27 01:24:24.000000', NULL, 0.00, 0.00),
 	(2, 3, '2025-09-27 01:24:16', '2025-09-27', 2, 'ready', 'transfer', 40.00, '2025-09-27 01:24:21.000000', NULL, 0.00, 0.00),
@@ -283,8 +283,9 @@ INSERT INTO `orders` (`order_id`, `user_id`, `order_time`, `order_date`, `order_
 	(129, 3, '2025-10-08 09:32:36', '2025-10-08', 1, 'canceled', 'transfer', 38.00, '2025-10-09 12:14:20.000000', NULL, 0.00, 0.00),
 	(130, 3, '2025-10-08 09:34:41', '2025-10-08', 2, 'canceled', 'transfer', 38.00, '2025-10-09 12:14:21.000000', NULL, 0.00, 0.00),
 	(131, 3, '2025-10-09 12:14:28', '2025-10-09', 1, 'canceled', 'transfer', 40.00, '2025-10-09 12:20:01.000000', NULL, 0.00, 0.00),
-	(132, 3, '2025-10-09 12:20:08', '2025-10-09', 2, 'pending', 'transfer', 40.00, '2025-10-09 12:20:10.000000', NULL, 0.00, 0.00),
-	(133, 3, '2025-10-09 12:20:39', '2025-10-09', 3, 'canceled', 'transfer', 40.00, '2025-10-09 12:27:56.000000', NULL, 0.00, 0.00);
+	(132, 3, '2025-10-09 12:20:08', '2025-10-09', 2, 'canceled', 'transfer', 40.00, '2025-10-09 13:50:51.000000', NULL, 0.00, 0.00),
+	(133, 3, '2025-10-09 12:20:39', '2025-10-09', 3, 'canceled', 'transfer', 40.00, '2025-10-09 12:27:56.000000', NULL, 0.00, 0.00),
+	(134, 3, '2025-10-09 13:50:42', '2025-10-09', 4, 'ready', 'transfer', 40.00, '2025-10-09 13:50:54.000000', NULL, 0.00, 0.00);
 
 -- Dumping structure for table psu_blue_cafe.order_counters
 CREATE TABLE IF NOT EXISTS `order_counters` (
@@ -293,7 +294,7 @@ CREATE TABLE IF NOT EXISTS `order_counters` (
   PRIMARY KEY (`order_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Dumping data for table psu_blue_cafe.order_counters: ~6 rows (approximately)
+-- Dumping data for table psu_blue_cafe.order_counters: ~10 rows (approximately)
 INSERT INTO `order_counters` (`order_date`, `last_seq`) VALUES
 	('2025-09-27', 44),
 	('2025-09-28', 32),
@@ -304,7 +305,7 @@ INSERT INTO `order_counters` (`order_date`, `last_seq`) VALUES
 	('2025-10-04', 3),
 	('2025-10-05', 1),
 	('2025-10-08', 2),
-	('2025-10-09', 3);
+	('2025-10-09', 4);
 
 -- Dumping structure for table psu_blue_cafe.order_details
 CREATE TABLE IF NOT EXISTS `order_details` (
@@ -322,9 +323,9 @@ CREATE TABLE IF NOT EXISTS `order_details` (
   CONSTRAINT `fk_details_menu` FOREIGN KEY (`menu_id`) REFERENCES `menu` (`menu_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_details_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_details_promo` FOREIGN KEY (`promo_id`) REFERENCES `promotions` (`promo_id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=158 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=159 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dumping data for table psu_blue_cafe.order_details: ~129 rows (approximately)
+-- Dumping data for table psu_blue_cafe.order_details: ~158 rows (approximately)
 INSERT INTO `order_details` (`order_detail_id`, `order_id`, `menu_id`, `promo_id`, `quantity`, `note`, `total_price`) VALUES
 	(1, 1, 11, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 40.00),
 	(2, 2, 11, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 40.00),
@@ -482,7 +483,8 @@ INSERT INTO `order_details` (`order_detail_id`, `order_id`, `menu_id`, `promo_id
 	(154, 130, 15, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 38.00),
 	(155, 131, 13, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 40.00),
 	(156, 132, 11, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 40.00),
-	(157, 133, 12, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 40.00);
+	(157, 133, 12, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 40.00),
+	(158, 134, 14, NULL, 1, 'ขนาด: ธรรมดา | หวาน: ปกติ | น้ำแข็ง: ปกติ', 40.00);
 
 -- Dumping structure for table psu_blue_cafe.payment_slips
 CREATE TABLE IF NOT EXISTS `payment_slips` (
@@ -663,183 +665,6 @@ INSERT INTO `recipes` (`recipe_id`, `menu_id`, `title`, `recipe_text`, `created_
 	(10, 18, 'โกโก้เย็น', '1. ใส่ส่วนผสมลงในแก้วชง\r\nCocoa Powder					1 	Teaspoons (ช้อนชา)\r\nHot Water						100	ml\r\n2. คนให้เข้ากัน\r\n3. เติม	Sweetened Condensed Milk			30 	ml 	(นมข้นหวาน)\r\nNon-Dairy Half Creamer Fresh Milk		30 	ml 	(นมข้นจืด/ ครีมเทียมพร่องไขมันสูตรผสมนมสด)\r\n4. เทลงในแก้วเสิร์ฟ 16 oz. ที่ใส่น้ำแข็งเต็มแก้วเตรียมไว้\r\n5. โรยหน้า Topping ด้วยผงโอวัลติน', '2025-10-05 15:09:14', '2025-10-05 15:09:20'),
 	(11, 21, 'นมสดสตรอเบอรี่', '1. ใส่ส่วนผสมลงในแก้วเสิร์ฟเป็น base ในแก้ว 16 oz.\r\nStrawberry Syrup				30 	ml 	(ไซรัปสตรอเบอรี่)\r\n2. เติมน้ำแข็งเต็มแก้ว\r\n3. ใส่	Milk', '2025-10-05 15:09:43', '2025-10-05 15:09:43');
 
--- Dumping structure for table psu_blue_cafe.recipe_headers
-CREATE TABLE IF NOT EXISTS `recipe_headers` (
-  `recipe_id` int(11) NOT NULL AUTO_INCREMENT,
-  `menu_id` int(11) NOT NULL,
-  `title` varchar(255) DEFAULT NULL,
-  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `created_at` datetime DEFAULT current_timestamp(),
-  PRIMARY KEY (`recipe_id`),
-  KEY `fk_rh_menu` (`menu_id`),
-  CONSTRAINT `fk_rh_menu` FOREIGN KEY (`menu_id`) REFERENCES `menu` (`menu_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Dumping data for table psu_blue_cafe.recipe_headers: ~17 rows (approximately)
-INSERT INTO `recipe_headers` (`recipe_id`, `menu_id`, `title`, `updated_at`, `created_at`) VALUES
-	(2, 9, 'มัทฉะลาเต้', '2025-09-25 18:54:00', '2025-09-25 16:06:17'),
-	(3, 10, 'มัทฉะมะพร้าว', '2025-09-25 18:54:05', '2025-09-25 16:25:10'),
-	(4, 19, 'นมชมพู', '2025-09-25 18:54:07', '2025-09-25 16:30:12'),
-	(11, 8, 'โซดาพาณิชย์', '2025-09-25 18:54:22', '2025-09-25 18:52:03'),
-	(12, 13, 'ชามะนาว', '2025-09-25 18:54:44', '2025-09-25 18:52:03'),
-	(13, 16, 'บ๊วยโซดา', '2025-09-25 18:58:20', '2025-09-25 18:58:05'),
-	(14, 20, 'มะพร้าวโยเกิร์ต ', '2025-09-27 13:59:34', '2025-09-25 18:58:05'),
-	(15, 7, 'ชาไทย', '2025-09-25 18:58:37', '2025-09-25 18:58:05'),
-	(16, 11, 'ชาเขียวนม', '2025-09-25 19:00:31', '2025-09-25 18:58:05'),
-	(17, 23, 'ชาเขียวลิ้นจี่', '2025-09-25 19:00:36', '2025-09-25 18:58:05'),
-	(18, 12, 'ชาดำเย็น', '2025-09-25 19:00:47', '2025-09-25 18:58:05'),
-	(20, 17, 'โอวันตินเย็น', '2025-09-25 19:01:10', '2025-09-25 18:58:05'),
-	(21, 18, 'โกโก้เย็น', '2025-09-25 19:01:16', '2025-09-25 18:58:05'),
-	(22, 21, 'นมสดสตรอเบอรี่', '2025-09-25 19:01:21', '2025-09-25 18:58:05'),
-	(23, 14, 'Blue Americano', '2025-10-05 14:35:26', '2025-09-25 18:58:05'),
-	(26, 8, 'โซดาพาณิชย์', '2025-10-05 14:36:09', '2025-09-27 14:03:34'),
-	(30, 14, 'เยนๆ', '2025-10-05 14:36:43', '2025-10-05 14:36:43');
-
--- Dumping structure for table psu_blue_cafe.recipe_ingredients
-CREATE TABLE IF NOT EXISTS `recipe_ingredients` (
-  `ingredient_id` int(11) NOT NULL AUTO_INCREMENT,
-  `recipe_id` int(11) NOT NULL,
-  `step_id` int(11) DEFAULT NULL,
-  `name` varchar(255) NOT NULL,
-  `qty` varchar(64) DEFAULT NULL,
-  `unit` varchar(64) DEFAULT NULL,
-  `note` varchar(255) DEFAULT NULL,
-  `sort_order` int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`ingredient_id`),
-  KEY `fk_ri_recipe` (`recipe_id`),
-  KEY `fk_ri_step` (`step_id`),
-  CONSTRAINT `fk_ri_recipe` FOREIGN KEY (`recipe_id`) REFERENCES `recipe_headers` (`recipe_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_ri_step` FOREIGN KEY (`step_id`) REFERENCES `recipe_steps` (`step_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Dumping data for table psu_blue_cafe.recipe_ingredients: ~53 rows (approximately)
-INSERT INTO `recipe_ingredients` (`ingredient_id`, `recipe_id`, `step_id`, `name`, `qty`, `unit`, `note`, `sort_order`) VALUES
-	(6, 2, 6, 'Matcha Powder', '1', 'Teaspoon', 'ช้อนชา', 1),
-	(7, 2, 6, 'Hot Water', '70', 'ml', NULL, 2),
-	(8, 2, 8, 'Sweetened Condensed Milk', '30', 'ml', 'นมข้นหวาน', 1),
-	(9, 2, 8, 'Non-Dairy Half Creamer Fresh Milk', '30', 'ml', 'นมข้นจืด/ครีมเทียมพร่องไขมันสูตรผสมนมสด', 2),
-	(10, 2, 8, 'Milk', '70', 'ml', 'นมสด', 3),
-	(11, 3, 11, 'Matcha Powder', '1', 'Teaspoon', 'ช้อนชา', 1),
-	(12, 3, 11, 'Hot Water', '70', 'ml', NULL, 2),
-	(13, 3, 13, 'Coconut Juice', '100', 'ml', NULL, 1),
-	(14, 4, 16, 'Milk', '50', 'ml', 'นมสด', 1),
-	(15, 4, 16, 'Pink Syrup', '40', 'ml', 'Hale’s Blue Boy สีแดงรสสละ', 2),
-	(16, 4, 16, 'Non-Dairy Half Creamer Fresh Milk', '30', 'ml', 'นมข้นจืด/ครีมเทียมพร่องไขมันสูตรผสมนมสด', 3),
-	(17, 4, 16, 'Water', '30', 'ml', NULL, 4),
-	(26, 11, 24, 'Blue Hawaii Syrup', '15', 'ml', 'ไซรัปบลูฮาวาย', 1),
-	(27, 11, 24, 'Lychee Syrup', '15', 'ml', 'ไซรัปลิ้นจี่', 2),
-	(28, 11, 24, 'Soda', '10', 'ml', NULL, 3),
-	(29, 11, 26, 'Soda', 'Fill-up', '', 'ใส่จนเต็มแก้ว', 1),
-	(30, 12, 27, 'Tea (based)', '100', 'ml', 'ชาที่สกัดเตรียมไว้แล้ว', 1),
-	(31, 12, 27, 'Lime Syrup', '30', 'ml', 'น้ำเชื่อม', 2),
-	(32, 12, 27, 'Water', '50', 'ml', NULL, 3),
-	(33, 13, 29, 'Plum Pickle', '1', 'piece', 'บ๊วย 1 เม็ด', 1),
-	(34, 13, 29, 'Plum Pickle Juice', '30', 'ml', 'น้ำบ๊วยดอง', 2),
-	(35, 13, 29, 'Syrup', '30', 'ml', 'น้ำเชื่อม', 3),
-	(36, 13, 29, 'Hot Water', '10', 'ml', NULL, 4),
-	(37, 13, 32, 'Soda', 'Fill-up', '', 'ใส่จนเต็มแก้ว', 1),
-	(38, 14, 33, 'Coconut Juice', '70', 'ml', NULL, 1),
-	(39, 14, 36, 'Yogurt Syrup', '30', 'ml', NULL, 1),
-	(40, 14, 36, 'Non-Dairy Half Creamer Fresh Milk', '10', 'ml', 'นมข้นจืด/ครีมเทียมพร่องไขมันสูตรผสมนมสด', 2),
-	(41, 15, 38, 'Sweetened Condensed Milk', '30', 'ml', 'นมข้นหวาน', 1),
-	(42, 16, 42, 'Sweetened Condensed Milk', '30', 'ml', 'นมข้นหวาน', 1),
-	(43, 17, 46, 'Tea (based)', '100', 'ml', 'ชาที่สกัดเตรียมไว้แล้ว', 1),
-	(44, 17, 46, 'Water', '50', 'ml', NULL, 2),
-	(45, 17, 46, 'Lychee Syrup', '30', 'ml', 'น้ำเชื่อม', 3),
-	(46, 18, 48, 'Tea (based)', '100', 'ml', 'ชาที่สกัดเตรียมไว้แล้ว', 1),
-	(47, 18, 48, 'Water', '50', 'ml', NULL, 2),
-	(48, 18, 48, 'Syrup', '30', 'ml', 'น้ำเชื่อม', 3),
-	(52, 20, 52, 'Ovaltine Powder', '2', 'Teaspoons', 'ช้อนชา', 1),
-	(53, 20, 52, 'Hot Water', '100', 'ml', NULL, 2),
-	(54, 20, 54, 'Sweetened Condensed Milk', '30', 'ml', 'นมข้นหวาน', 1),
-	(55, 20, 54, 'Non-Dairy Half Creamer Fresh Milk', '30', 'ml', 'นมข้นจืด/ครีมเทียมพร่องไขมันสูตรผสมนมสด', 2),
-	(56, 21, 57, 'Cocoa Powder', '1', 'Teaspoon', 'ช้อนชา', 1),
-	(57, 21, 57, 'Hot Water', '100', 'ml', NULL, 2),
-	(58, 21, 59, 'Sweetened Condensed Milk', '30', 'ml', 'นมข้นหวาน', 1),
-	(59, 21, 59, 'Non-Dairy Half Creamer Fresh Milk', '30', 'ml', 'นมข้นจืด/ครีมเทียมพร่องไขมันสูตรผสมนมสด', 2),
-	(60, 22, 62, 'Strawberry Syrup', '30', 'ml', 'ไซรัปสตรอเบอรี่', 1),
-	(61, 22, 64, 'Milk', 'Fill-up', '', 'ใส่จนเต็มแก้ว', 1),
-	(83, 23, 86, 'Blue Hawaii Syrup', '15', 'ml', 'ไซรัปบลูฮาวาย', 1),
-	(84, 23, NULL, 'dadadadada', '', '', '', 2),
-	(85, 23, 86, 'Lychee Syrup', '15', 'ml', 'ไซรัปลิ้นจี่', 3),
-	(86, 23, 86, 'Hot Water', '70', 'ml', '', 4),
-	(87, 23, 89, 'Espresso Shot', '30', 'ml', 'กาแฟ 1 Shot', 5),
-	(97, 26, 97, 'Blue Hawaii Syrup				15 	ml', '15', 'ml', 'ไซรัปบลูฮาวาย', 1),
-	(98, 26, 97, 'Lychee Syrup', '15', 'ml', 'ไซรัปลิ้นจี่', 2),
-	(99, 26, 97, 'Soda', '10', 'ml', '', 3);
-
--- Dumping structure for table psu_blue_cafe.recipe_steps
-CREATE TABLE IF NOT EXISTS `recipe_steps` (
-  `step_id` int(11) NOT NULL AUTO_INCREMENT,
-  `recipe_id` int(11) NOT NULL,
-  `step_no` int(11) NOT NULL,
-  `step_text` text NOT NULL,
-  `sort_order` int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`step_id`),
-  UNIQUE KEY `uq_recipe_step` (`recipe_id`,`step_no`),
-  CONSTRAINT `fk_rs_recipe` FOREIGN KEY (`recipe_id`) REFERENCES `recipe_headers` (`recipe_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Dumping data for table psu_blue_cafe.recipe_steps: ~57 rows (approximately)
-INSERT INTO `recipe_steps` (`step_id`, `recipe_id`, `step_no`, `step_text`, `sort_order`) VALUES
-	(6, 2, 1, 'ใส่ส่วนผสมลงในแก้วชงเพื่อเป็น Topping', 1),
-	(7, 2, 2, 'พักรอไว้', 2),
-	(8, 2, 3, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟแล้วคนให้เข้ากันเป็น base ในแก้ว 16 oz.', 3),
-	(9, 2, 4, 'เติมน้ำแข็ง', 4),
-	(10, 2, 5, 'นำมัทฉะที่ผสมน้ำร้อนไว้มาเทลงเป็น Topping แล้วเสิร์ฟ', 5),
-	(11, 3, 1, 'ใส่ส่วนผสมลงในแก้วชงเพื่อเป็น Topping', 1),
-	(12, 3, 2, 'พักรอไว้', 2),
-	(13, 3, 3, 'ใส่ Coconut Juice 100 ml ลงเป็น base ในแก้วเสิร์ฟ 16 oz.', 3),
-	(14, 3, 4, 'เติมน้ำแข็ง', 4),
-	(15, 3, 5, 'นำมัทฉะที่ผสมน้ำร้อนไว้มาเทลงเป็น Topping แล้วเสิร์ฟ', 5),
-	(16, 4, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟคนให้เข้ากัน', 1),
-	(17, 4, 2, 'เติมน้ำแข็ง แล้วเสิร์ฟ', 2),
-	(24, 11, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟแล้วคนให้เข้ากันเป็น base', 1),
-	(25, 11, 2, 'เติมน้ำแข็ง', 2),
-	(26, 11, 3, 'เติม Soda Fill-up (ใส่จนเต็มแก้ว)', 3),
-	(27, 12, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟเป็น base', 1),
-	(28, 12, 2, 'เติมน้ำแข็งแล้วเสิร์ฟ', 2),
-	(29, 13, 1, 'ใส่ส่วนผสมลงในแก้วชง', 1),
-	(30, 13, 2, 'เตรียมแก้วเสิร์ฟใส่น้ำแข็งเต็มแก้ว', 2),
-	(31, 13, 3, 'เทส่วนที่ผสมไว้แล้วจากแก้วชงลงในแก้วเสิร์ฟ 16 oz.', 3),
-	(32, 13, 4, 'เติม Soda Fill-up (ใส่จนเต็มแก้ว)', 4),
-	(33, 14, 1, 'ใส่ Coconut Juice 70 ml ลงเป็น base ในแก้วเสิร์ฟ 16 oz.', 1),
-	(34, 14, 2, 'เติมน้ำแข็ง', 2),
-	(35, 14, 3, 'พักรอไว้', 3),
-	(36, 14, 4, 'ใส่ส่วนผสมลงในแก้วชงแล้วคนให้เข้ากัน', 4),
-	(37, 14, 5, 'เทส่วนที่ผสมไว้จากแก้วชงลงในแก้วเสิร์ฟ 16 oz. เป็น Topping แล้วเสิร์ฟ', 5),
-	(38, 15, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟแล้วคนให้เข้ากันเป็น base ในแก้ว 16 oz.', 1),
-	(39, 15, 2, 'ใส่ Tea (based) 100 ml (ชาที่สกัดเตรียมไว้แล้ว)', 2),
-	(40, 15, 3, 'เติมน้ำแข็ง', 3),
-	(41, 15, 4, 'เติม Non-Dairy Half Creamer Fresh Milk 30 ml เป็น Topping แล้วเสิร์ฟ', 4),
-	(42, 16, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟแล้วคนให้เข้ากันเป็น base ในแก้ว 16 oz.', 1),
-	(43, 16, 2, 'ใส่ Tea (based) 100 ml (ชาที่สกัดเตรียมไว้แล้ว)', 2),
-	(44, 16, 3, 'เติมน้ำแข็ง', 3),
-	(45, 16, 4, 'เติม Non-Dairy Half Creamer Fresh Milk 30 ml เป็น Topping แล้วเสิร์ฟ', 4),
-	(46, 17, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟแล้วคนให้เข้ากันเป็น base ในแก้ว 16 oz.', 1),
-	(47, 17, 2, 'เติมน้ำแข็งแล้วเสิร์ฟ', 2),
-	(48, 18, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟแล้วคนให้เข้ากันเป็น base ในแก้ว 16 oz.', 1),
-	(49, 18, 2, 'เติมน้ำแข็งแล้วเสิร์ฟ', 2),
-	(52, 20, 1, 'ใส่ส่วนผสมลงในแก้วชง', 1),
-	(53, 20, 2, 'คนให้เข้ากัน', 2),
-	(54, 20, 3, 'เติมส่วนผสมเพิ่ม', 3),
-	(55, 20, 4, 'เทลงในแก้วเสิร์ฟ 16 oz. ที่ใส่น้ำแข็งเต็มแก้วเตรียมไว้', 4),
-	(56, 20, 5, 'โรยหน้า Topping ด้วยผงโอวัลติน', 5),
-	(57, 21, 1, 'ใส่ส่วนผสมลงในแก้วชง', 1),
-	(58, 21, 2, 'คนให้เข้ากัน', 2),
-	(59, 21, 3, 'เติมส่วนผสมเพิ่ม', 3),
-	(60, 21, 4, 'เทลงในแก้วเสิร์ฟ 16 oz. ที่ใส่น้ำแข็งเต็มแก้วเตรียมไว้', 4),
-	(61, 21, 5, 'โรยหน้า Topping ด้วยผงโอวัลติน', 5),
-	(62, 22, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟเป็น base ในแก้ว 16 oz.', 1),
-	(63, 22, 2, 'เติมน้ำแข็งเต็มแก้ว', 2),
-	(64, 22, 3, 'ใส่ Milk Fill-up (ใส่จนเต็มแก้ว)', 3),
-	(86, 23, 1, 'ใส่ส่วนผสมลงในแก้วชง', 1),
-	(87, 23, 2, 'คนให้เข้ากัน', 2),
-	(88, 23, 3, 'เทลงในแก้วเสิร์ฟ 16 oz. ที่ใส่น้ำแข็งเต็มแก้วเตรียมไว้', 3),
-	(89, 23, 4, 'ใส่ Espresso Shot 30 ml เทลงเป็น Topping แล้วเสิร์ฟ', 4),
-	(97, 26, 1, 'ใส่ส่วนผสมลงในแก้วเสิร์ฟแล้วคนให้เข้ากันเป็น base ในแก้ว 16 oz.', 1),
-	(98, 26, 3, 'เติม 	Soda', 3);
-
 -- Dumping structure for table psu_blue_cafe.toppings
 CREATE TABLE IF NOT EXISTS `toppings` (
   `topping_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -884,11 +709,7 @@ INSERT INTO `users` (`user_id`, `username`, `password`, `student_ID`, `name`, `r
 
 -- Dumping structure for view psu_blue_cafe.v_menu_active_recipe
 -- Creating temporary table to overcome VIEW dependency errors
-CREATE TABLE `v_menu_active_recipe` (
-	`menu_id` INT(11) NOT NULL,
-	`menu_name` VARCHAR(1) NOT NULL COLLATE 'utf8mb4_unicode_ci',
-	`recipe_id` INT(11) NULL,
-	`recipe_title` VARCHAR(1) NULL COLLATE 'utf8mb4_general_ci'
+CREATE TABLE `v_menu_active_recipe` 
 ) ENGINE=MyISAM;
 
 -- Dumping structure for trigger psu_blue_cafe.trg_orders_before_insert

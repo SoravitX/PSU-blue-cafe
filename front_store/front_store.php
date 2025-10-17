@@ -627,6 +627,84 @@ $new_order_seq    = ($os) ? format_order_seq((int)$os) : '';                    
 
 
 }
+/* ----- CHECKOUT ----- */
+$new_order_id = 0; $new_total = 0.00; $new_order_code = '';
+if ($action === 'checkout' && !empty($_SESSION['cart'])) {
+  // รวมยอด
+  $total = 0.00;
+  foreach ($_SESSION['cart'] as $row) $total += ((float)$row['price']) * ((int)$row['qty']);
+
+  // ===== แทน Trigger: รันลำดับต่อวัน =====
+  // ใช้เวลาไทยตรงกับที่ตั้งไว้ด้านบน
+  $today = date('Y-m-d');
+
+  $conn->begin_transaction();
+
+  try {
+    // 1) ดันตัวนับต่อวันขึ้น 1 แบบกัน race ด้วย LAST_INSERT_ID()
+    $stSeq = $conn->prepare("
+      INSERT INTO order_counters (order_date, last_seq)
+      VALUES (?, LAST_INSERT_ID(1))
+      ON DUPLICATE KEY UPDATE last_seq = LAST_INSERT_ID(last_seq + 1)
+    ");
+    $stSeq->bind_param('s', $today);
+    $stSeq->execute();
+    $stSeq->close();
+
+    // 2) รับค่าลำดับล่าสุด (seq วันนี้)
+    $rs = $conn->query("SELECT LAST_INSERT_ID() AS seq");
+    $seq = (int)($rs->fetch_assoc()['seq'] ?? 0);
+    $rs->free();
+
+    // safety
+    if ($seq <= 0) { throw new RuntimeException('cannot allocate daily sequence'); }
+
+    // 3) สร้างออเดอร์ พร้อม order_time/order_date/order_seq/updated_at
+    $stOrd = $conn->prepare("
+      INSERT INTO orders (user_id, order_time, order_date, order_seq, status, total_price, updated_at)
+      VALUES (?, NOW(), ?, ?, 'pending', ?, NOW(6))
+    ");
+    $uid = (int)$_SESSION['uid'];
+    $stOrd->bind_param('isid', $uid, $today, $seq, $total);
+    $stOrd->execute();
+    $order_id = $stOrd->insert_id;
+    $stOrd->close();
+
+    // 4) รายการสินค้า
+    foreach ($_SESSION['cart'] as $row) {
+      $line    = ((int)$row['qty']) * ((float)$row['price']);
+      $promoId = $row['promo_id'] ?? null;
+
+      if ($promoId === null) {
+        $stmt = $conn->prepare("INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
+                                VALUES (?, ?, NULL, ?, ?, ?)");
+        $stmt->bind_param("iiisd", $order_id, $row['menu_id'], $row['qty'], $row['note'], $line);
+      } else {
+        $stmt = $conn->prepare("INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
+                                VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("iiiisd", $order_id, $row['menu_id'], $promoId, $row['qty'], $row['note'], $line);
+      }
+      $stmt->execute();
+      $stmt->close();
+    }
+
+    $conn->commit();
+
+    // === เตรียม label แสดงผลหลัง checkout ===
+    $new_order_id  = $order_id;
+    $new_total     = $total;
+    $new_order_seq = format_order_seq($seq); // "003"
+    $new_order_code = format_order_code($today, $seq); // "YYMMDD-003"
+
+    // เคลียร์ตะกร้า
+    $_SESSION['cart'] = [];
+
+  } catch (Throwable $e) {
+    $conn->rollback();
+    // ดูว่าอยากแจ้งข้อความผู้ใช้ไหม (ตอนนี้ปล่อยให้ flow เดิมแจ้ง fail จากหน้า UI)
+    throw $e;
+  }
+}
 
 
 /* ---------- AJAX: กล่องตะกร้า ---------- */
