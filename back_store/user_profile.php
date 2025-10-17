@@ -442,13 +442,13 @@ body, .table, .btn, input, label, .badge, .pill{ font-size:14.5px !important; }
   <!-- Top -->
   <div class="topbar d-flex align-items-center justify-content-between mb-3">
     <div>
-      <div class="h5 m-0 brand"><i class="bi bi-person-badge"></i> โปรไฟล์ของฉัน • ชั่วโมงทำงาน</div>
+      <div class="h5 m-0 brand"><i class="bi bi-person-badge"></i> ชั่วโมงทำงาน</div>
       <small class="text-light">
         <i class="bi bi-person"></i> ชื่อ:
-        <span class="badge-chip"><?= h($user['name'] ?: $user['username']) ?></span>
+         <span class="badge-chip badge-white"><?= h($user['username']) ?></span>
         &nbsp;•&nbsp;<i class="bi bi-pass"></i> รหัสนักศึกษา:
         <span class="badge-chip"><?= h($user['student_ID'] ?: '-') ?></span>
-        &nbsp;•&nbsp;<i class="bi bi-activity"></i> สถานะ:
+        &nbsp;•&nbsp;<i class=""></i> สถานะ:
         <span class="badge-chip"><?= h($user['status'] ?: '-') ?></span>
       </small>
     </div>

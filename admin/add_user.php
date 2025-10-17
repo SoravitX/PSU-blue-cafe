@@ -15,11 +15,10 @@ $err = '';
 
 // ตัวเลือกบทบาท
 $roles = [
-  'admin'   => 'ผู้ดูแล',
-  'employee'=> 'พนักงาน',
-  'kitchen' => 'ครัว',
-  'back'    => 'หลังร้าน',
-  'barista' => 'บาริสต้า'
+  
+  'front store'=> 'หน้าร้าน',
+  'back store'    => 'หลังร้าน',
+  
 ];
 
 // ตัวเลือกสถานะชั่วโมง
@@ -241,8 +240,8 @@ textarea:-webkit-autofill{
   <!-- Topbar -->
   <div class="topbar d-flex align-items-center justify-content-between mb-3">
     <div class="d-flex align-items-center">
-      <h4 class="brand mb-0 mr-3"><i class="bi bi-shield-lock"></i> PSU Blue Cafe • Admin</h4>
-      <span class="badge-tag"><i class="bi bi-person-plus"></i> สร้างผู้ใช้ใหม่</span>
+      <h4 class="brand mb-0 mr-3"><i class="bi bi-shield-lock"></i> สร้างผู้ใช้ใหม่</h4>
+      
     </div>
     <div class="d-flex align-items-center" style="gap:8px">
       <a href="users_list.php" class="btn btn-sm"><i class="bi bi-people"></i> ดูผู้ใช้ทั้งหมด</a>
@@ -320,7 +319,7 @@ textarea:-webkit-autofill{
       </div>
 
       <div class="d-flex justify-content-between mt-2">
-        <a href="adminmenu.php" class="btn btn-light"><i class="bi bi-x-circle"></i> ยกเลิก</a>
+        <a href="users_list.php" class="btn btn-light"><i class="bi bi-x-circle"></i> ยกเลิก</a>
         <button class="btn btn-primary"><i class="bi bi-save"></i> บันทึกผู้ใช้</button>
       </div>
     </form>

@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </button>
               </div>
             </div>
-            <small class="hint">เพื่อความปลอดภัย รหัสผ่านจะถูกบันทึกแบบเข้ารหัส (bcrypt)</small>
+            
           </div>
 
           <button type="submit" class="btn btn-primary btn-block mt-2">บันทึกรหัสผ่านใหม่</button>

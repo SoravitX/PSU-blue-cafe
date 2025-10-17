@@ -411,10 +411,10 @@ body,.table,.btn,input,label,.badge,.chip,.note{ font-size:14.5px !important; }
 
   <!-- Navbar -->
   <div class="topbar d-flex align-items-center justify-content-between">
-    <h4 class="brand"><i class="bi bi-clipboard2-check"></i> PSU Blue Cafe • เช็คออเดอร์</h4>
+    <h4 class="brand"><i class="bi bi-clipboard2-check"></i>เช็คออเดอร์</h4>
     <div class="d-flex align-items-center topbar-actions">
       <a href="back_store.php" class="btn btn-primary btn-sm"><i class="bi bi-shop"></i> หลังร้าน</a>
-      <a href="../SelectRole/role.php" class="btn btn-primary btn-sm"><i class="bi bi-person-badge"></i> บทบาท</a>
+      <a href="../SelectRole/role.php" clasgit remote -vs="btn btn-primary btn-sm"><i class="bi bi-person-badge"></i> บทบาท</a>
       <a href="user_profile.php" class="btn btn-primary btn-sm mr-2" style="font-weight:800"><i class="bi bi-person-circle"></i> ข้อมูลส่วนตัว</a>
       <span class="badge badge-user px-3 py-2"><i class="bi bi-person"></i> ผู้ใช้: <?= h($_SESSION['username'] ?? '') ?></span>
       <a class="btn btn-sm btn-outline-light" href="../logout.php"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</a>

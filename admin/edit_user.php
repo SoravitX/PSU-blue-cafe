@@ -438,8 +438,8 @@ textarea.form-control {
   <!-- Navbar -->
   <div class="topbar d-flex align-items-center justify-content-between mb-3">
     <div class="d-flex align-items-center">
-      <h4 class="brand mb-0 mr-3"><i class="bi bi-shield-lock"></i> PSU Blue Cafe • Admin</h4>
-      <span class="badge badge-user px-3 py-2">แก้ไขผู้ใช้ #<?= (int)$user['user_id'] ?></span>
+      <h4 class="brand mb-0 mr-3"><i class="bi bi-shield-lock"></i> แก้ไขผู้ใช้ #<?= (int)$user['user_id'] ?></h4>
+      
     </div>
     <div class="d-flex align-items-center" style="gap:8px">
       <a href="users_list.php" class="btn btn-sm"><i class="bi bi-people"></i> รายชื่อผู้ใช้</a>
@@ -517,14 +517,14 @@ textarea.form-control {
       <div class="form-row">
         <div class="form-group col-md-6 input-icon">
           <i class="bi bi-lock"></i>
-          <label>รหัสผ่านใหม่ <small class="text-muted">(เว้นว่างถ้าไม่เปลี่ยน)</small></label>
+          <label>รหัสผ่านใหม่ <small class="text-muted"></small></label>
           <div class="input-group">
             <input type="password" name="password" id="pw" class="form-control" minlength="4" autocomplete="new-password" placeholder="อย่างน้อย 4 ตัวอักษร">
             <div class="input-group-append">
               <button class="btn btn-outline-secondary" type="button" id="togglePw"><i class="bi bi-eye"></i></button>
             </div>
           </div>
-          <small class="help">ปลอดภัยขึ้นด้วยรหัสผ่านที่เดายาก</small>
+         
         </div>
         <div class="form-group col-md-6 input-icon">
           <i class="bi bi-lock-fill"></i>

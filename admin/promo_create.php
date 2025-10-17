@@ -1,5 +1,6 @@
 <?php
 // admin/promo_create.php — สร้างโปรโมชัน + ผูกกับหลายเมนู (Font_Store Blue Theme)
+// เวอร์ชันนี้: คอลัมน์ "สถานะ" ถูกเปลี่ยนเป็น "ช่วงเวลา" (ยังไม่เริ่ม / กำลังอยู่ในช่วง / หมดช่วง)
 declare(strict_types=1);
 session_start();
 if (empty($_SESSION['uid'])) { header("Location: ../index.php"); exit; }
@@ -8,6 +9,11 @@ if (empty($_SESSION['uid'])) { header("Location: ../index.php"); exit; }
 require __DIR__ . '/../db.php';
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $conn->set_charset('utf8mb4');
+
+/* เวลาไทยให้ตรง PHP/MySQL */
+date_default_timezone_set('Asia/Bangkok');
+try { $conn->query("SET time_zone = 'Asia/Bangkok'"); }
+catch (\mysqli_sql_exception $e) { $conn->query("SET time_zone = '+07:00'"); }
 
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
@@ -271,7 +277,6 @@ td.col-name .one-line{
   box-shadow: none !important;
   text-shadow: none !important;
 }
-
 </style>
 </head>
 <body>
@@ -405,7 +410,8 @@ td.col-name .one-line{
               <th style="width:120px">ค่า</th>
               <th style="width:150px">เริ่ม</th>
               <th style="width:150px">สิ้นสุด</th>
-              <th style="width:90px">สถานะ</th>
+              <!-- เปลี่ยนหัวข้อคอลัมน์ -->
+              <th style="width:120px">ช่วงเวลา</th>
               <th style="width:220px" class="text-right">จัดการ</th>
             </tr>
           </thead>
@@ -429,18 +435,27 @@ td.col-name .one-line{
                   <td><?= h(date('Y-m-d', strtotime($p['start_at']))) ?></td>
                   <td><?= h(date('Y-m-d', strtotime($p['end_at']))) ?></td>
 
+                  <!-- คอลัมน์ช่วงเวลา -->
+                  <?php
+                    $now   = new DateTime('now', new DateTimeZone('Asia/Bangkok'));
+                    $start = new DateTime($p['start_at'], new DateTimeZone('Asia/Bangkok'));
+                    $end   = new DateTime($p['end_at'],   new DateTimeZone('Asia/Bangkok'));
+
+                    if ($now < $start) {
+                      $periodLabel = 'ยังไม่เริ่ม';
+                      $chipStyle = "background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.07)); border-color:rgba(255,255,255,.25)";
+                    } elseif ($now > $end) {
+                      $periodLabel = 'หมดช่วง';
+                      $chipStyle = "background:linear-gradient(180deg, rgba(255,91,91,.20), rgba(229,57,53,.18)); border-color:rgba(229,57,53,.35)";
+                    } else {
+                      $periodLabel = 'อยู่ในช่วง';
+                      $chipStyle = "background:linear-gradient(180deg, rgba(46,197,94,.22), rgba(34,197,94,.18)); border-color:rgba(34,197,94,.35)";
+                    }
+                  ?>
                   <td>
-                    <?php if((int)$p['is_active']===1): ?>
-                      <span class="badge-chip status-chip"
-                        style="background:linear-gradient(180deg, rgba(46,197,94,.22), rgba(34,197,94,.18)); border-color:rgba(34,197,94,.35)">
-                        เปิด
-                      </span>
-                    <?php else: ?>
-                      <span class="badge-chip status-chip"
-                        style="background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.05)); border-color:rgba(255,255,255,.18)">
-                        ปิด
-                      </span>
-                    <?php endif; ?>
+                    <span class="badge-chip status-chip" style="<?= $chipStyle ?>">
+                      <?= h($periodLabel) ?>
+                    </span>
                   </td>
 
                   <td class="text-right">

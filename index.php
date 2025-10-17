@@ -223,7 +223,7 @@ if (isset($_POST['login'])) {
                 </button>
               </div>
             </div>
-            <small class="hint">กด <strong>Enter</strong> เพื่อเข้าสู่ระบบได้ทันที</small>
+            
           </div>
 
           <button type="submit" name="login" value="1" class="btn btn-primary btn-block mt-3">

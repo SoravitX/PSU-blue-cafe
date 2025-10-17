@@ -1,14 +1,14 @@
 <?php
-// admin/add_category.php
+// admin/add_category.php — PSU Blue Dark Theme
 declare(strict_types=1);
 require __DIR__ . '/../db.php';
 $conn->set_charset('utf8mb4');
 
 $msg = ''; $ok = false;
 
-if ($_SERVER['REQUEST_METHOD']==='POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $name = trim($_POST['category_name'] ?? '');
-  if ($name==='') {
+  if ($name === '') {
     $msg = 'กรุณากรอกชื่อหมวดหมู่';
   } else {
     $stmt = $conn->prepare("INSERT INTO categories (category_name) VALUES (?)");
@@ -24,76 +24,133 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<title>เพิ่มหมวดหมู่ • PSU Blue Cafe</title>
+<title>เพิ่มหมวดหมู่ • PSU Blue Café</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet"
  href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet"
  href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 <style>
-/* ========= Teal–Graphite Dark ========= */
+/* ============ PSU Blue Café – Dark Minimal Theme ============ */
 :root{
-  --text-strong:#F4F7F8; --text-normal:#E6EBEE; --text-muted:#B9C2C9;
-  --bg-grad1:#222831; --bg-grad2:#393E46;
-  --surface:#1C2228; --surface-2:#232A31; --surface-3:#2B323A;
-  --ink:#F4F7F8; --ink-muted:#CFEAED;
-  --brand-900:#EEEEEE; --brand-700:#BFC6CC;
-  --brand-500:#00ADB5; --brand-400:#27C8CF; --brand-300:#73E2E6;
-  --ok:#22c55e; --danger:#ef4444; --ring:#27C8CF;
-  --shadow-lg:0 22px 66px rgba(0,0,0,.55); --shadow:0 14px 32px rgba(0,0,0,.42);
+  --bg-grad1:#0b1220;
+  --bg-grad2:#101a27;
+  --surface:#1a2230;
+  --surface-2:#192231;
+  --surface-3:#202a3a;
+  --text-strong:#ffffff;
+  --text-normal:#e6ebee;
+  --text-muted:#9fb1c5;
+  --brand-500:#2ea7ff;
+  --brand-400:#1f7ee8;
+  --border-blue:#1669c9;
+  --success:#22c55e;
+  --danger:#ef4444;
+  --radius:10px;
 }
 html,body{height:100%}
 body{
-  background:linear-gradient(135deg,var(--bg-grad1),var(--bg-grad2));
-  color:var(--ink); font-family:"Segoe UI",Tahoma,Arial,sans-serif; margin:0;
+  margin:0;
+  font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  background:linear-gradient(180deg,var(--bg-grad1),var(--bg-grad2));
+  color:var(--text-normal);
 }
 .wrap{max-width:640px;margin:40px auto;padding:0 16px}
+
+/* ---------- Topbar ---------- */
 .topbar{
   display:flex;align-items:center;justify-content:space-between;
-  background:color-mix(in oklab, var(--surface), white 6%);
-  border:1px solid color-mix(in oklab, var(--brand-700), black 22%);
-  border-radius:14px; padding:12px 16px; box-shadow:0 8px 20px rgba(0,0,0,.35);
-  margin-bottom:14px;
+  background:var(--surface-2);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  padding:12px 16px;
 }
-.brand{margin:0;font-weight:900;letter-spacing:.3px;color:var(--text-strong)}
+.brand{
+  margin:0;font-weight:900;color:var(--text-strong);
+}
+.btn-back{
+  border-radius:8px;
+  background:transparent;
+  border:1px solid rgba(255,255,255,.15);
+  color:var(--text-normal)!important;
+  font-weight:700;
+}
+.btn-back:hover{filter:brightness(1.1)}
+
+/* ---------- Card ---------- */
 .cardx{
-  background:color-mix(in oklab, var(--surface), white 8%);
-  border:1px solid color-mix(in oklab, var(--brand-700), black 22%);
-  border-radius:16px; color:var(--text-normal);
-  box-shadow:var(--shadow); padding:20px;
+  background:var(--surface);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:10px;
+  padding:24px;
+  color:var(--text-normal);
 }
-label{font-weight:800;color:var(--brand-900)}
+
+/* ---------- Form ---------- */
+label{font-weight:800;color:var(--text-strong)}
 .form-control{
-  background:var(--surface-2); border:1px solid color-mix(in oklab, var(--brand-700), black 24%);
-  color:var(--ink); border-radius:10px;
+  background:var(--surface-2);
+  border:1px solid rgba(255,255,255,.12);
+  color:#fff;
+  border-radius:8px;
 }
-.form-control::placeholder{color:#9fb0ba}
-.form-control:focus{box-shadow:0 0 0 .2rem color-mix(in oklab,var(--ring),white 25%); border-color:var(--brand-400)}
-.btn-ghost{
+.form-control::placeholder{color:#a0b2c2}
+.form-control:focus{
+  border-color:var(--brand-500);
+  box-shadow:0 0 0 3px rgba(46,167,255,.25);
+}
+
+/* ---------- Buttons ---------- */
+.btn-primary,.btn-ghost{
   background:linear-gradient(180deg,var(--brand-500),var(--brand-400));
-  color:#062b33; font-weight:900; border:0; border-radius:12px; box-shadow:0 8px 18px rgba(0,0,0,.25)
+  border:1px solid var(--border-blue);
+  color:#fff!important;
+  font-weight:900;
+  border-radius:8px;
+  box-shadow:none;
 }
-.btn-ghost:active{transform:translateY(1px)}
-.btn-back{border-radius:12px;border:1px solid color-mix(in oklab, var(--brand-700), black 24%); color:var(--brand-900)}
+.btn-primary:hover,.btn-ghost:hover{filter:brightness(1.08)}
+.btn-outline-light{
+  background:transparent;
+  color:#fff;
+  border:1px solid rgba(255,255,255,.2);
+  font-weight:800;
+  border-radius:8px;
+}
+
+/* ---------- Alerts ---------- */
 .alert{
-  border-radius:12px; border:1px solid transparent;
+  border-radius:10px;
+  font-weight:700;
+  border:none;
 }
-.alert-success{background:color-mix(in oklab, var(--ok), black 82%); border-color:color-mix(in oklab, var(--ok), black 50%); color:#eaffef}
-.alert-danger{background:color-mix(in oklab, var(--danger), black 82%); border-color:color-mix(in oklab, var(--danger), black 50%); color:#ffecec}
+.alert-success{
+  background:rgba(34,197,94,.18);
+  color:#22c55e;
+  border:1px solid rgba(34,197,94,.4);
+}
+.alert-danger{
+  background:rgba(239,68,68,.18);
+  color:#ff6b6b;
+  border:1px solid rgba(239,68,68,.4);
+}
+
+/* ---------- Misc ---------- */
 .small-hint{color:var(--text-muted)}
-:focus-visible{outline:3px solid var(--ring); outline-offset:2px; border-radius:10px}
-/* scrollbar */
+:focus-visible{outline:3px solid rgba(46,167,255,.55); outline-offset:2px; border-radius:8px}
+
+/* Scrollbar */
 *::-webkit-scrollbar{width:10px;height:10px}
-*::-webkit-scrollbar-thumb{background:#2e3a44;border-radius:10px}
-*::-webkit-scrollbar-thumb:hover{background:#3a4752}
-*::-webkit-scrollbar-track{background:#151a20}
+*::-webkit-scrollbar-thumb{background:#2c3545;border-radius:10px}
+*::-webkit-scrollbar-thumb:hover{background:#3d4a5a}
+*::-webkit-scrollbar-track{background:#131a22}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="topbar">
-    <h5 class="brand"><i class="bi bi-tags"></i> เพิ่มหมวดหมู่ • PSU Blue Cafe</h5>
+  <div class="topbar mb-3">
+    <h5 class="brand"><i class="bi bi-tags"></i> เพิ่มหมวดหมู่</h5>
     <a href="adminmenu.php" class="btn btn-sm btn-back">
       <i class="bi bi-arrow-left-circle"></i> กลับหน้าจัดการเมนู
     </a>
@@ -117,7 +174,7 @@ label{font-weight:800;color:var(--brand-900)}
       </div>
 
       <div class="d-flex align-items-center mt-3" style="gap:10px">
-        <button class="btn btn-ghost" type="submit"><i class="bi bi-check2-circle"></i> บันทึก</button>
+        <button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle"></i> บันทึก</button>
         <a href="adminmenu.php" class="btn btn-outline-light"><i class="bi bi-x-circle"></i> ยกเลิก</a>
       </div>
     </form>

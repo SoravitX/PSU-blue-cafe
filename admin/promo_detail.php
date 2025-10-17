@@ -1,13 +1,36 @@
 <?php
-// admin/promo_detail.php — ดู/แก้ไขโปรโมชัน + ผูก/ถอดเมนู + เปิด/ปิดโปร (Font_Store Blue / No Shadows)
+// admin/promo_detail.php — ดู/แก้ไขโปรโมชัน + ผูก/ถอดเมนู + เปิด/ปิดโปร + ปรับช่วงวันเวลา (Font_Store Blue / No Shadows)
 declare(strict_types=1);
 session_start();
 require __DIR__ . '/../db.php';
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $conn->set_charset('utf8mb4');
 
+/* === เวลาไทยให้ตรง PHP/MySQL === */
+date_default_timezone_set('Asia/Bangkok');
+try { $conn->query("SET time_zone = 'Asia/Bangkok'"); }
+catch (\mysqli_sql_exception $e) { $conn->query("SET time_zone = '+07:00'"); }
+
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function baht($n){ return number_format((float)$n, 2); }
+function dt_input_val(?string $dbDt): string {
+  if (!$dbDt) return '';
+  // รับค่า DATETIME (เช่น 2025-10-14 09:30:00) -> แปลงเป็นค่า input type=datetime-local (Y-m-d\TH:i)
+  try {
+    $dt = new DateTime($dbDt, new DateTimeZone('Asia/Bangkok'));
+    return $dt->format('Y-m-d\TH:i');
+  } catch (\Exception $e) { return ''; }
+}
+function parse_datetime_local(string $v): ?string {
+  // รับค่าจาก input datetime-local -> แปลงเป็น 'Y-m-d H:i:s' ตามโซนเวลาไทย
+  $v = trim($v);
+  if ($v==='') return null;
+  try {
+    $dt = DateTime::createFromFormat('Y-m-d\TH:i', $v, new DateTimeZone('Asia/Bangkok'));
+    if (!$dt) return null;
+    return $dt->format('Y-m-d H:i:s');
+  } catch (\Exception $e) { return null; }
+}
 
 $promo_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($promo_id <= 0) { header("Location: promo_list.php"); exit; }
@@ -61,6 +84,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $stmt->execute();
       $stmt->close();
       $msg = 'นำเมนูออกจากโปรโมชันแล้ว'; $cls = 'success';
+    }
+  }
+
+  // (4) อัปเดตช่วงวันเวลาใช้งานโปรโมชัน
+  if ($action === 'update_dates') {
+    $start_in = (string)($_POST['start_at'] ?? '');
+    $end_in   = (string)($_POST['end_at'] ?? '');
+
+    $start_at = parse_datetime_local($start_in);
+    $end_at   = parse_datetime_local($end_in);
+
+    if ($start_at === null || $end_at === null) {
+      $msg = 'รูปแบบวันเวลาไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'; $cls = 'danger';
+    } else {
+      // ตรวจสอบ end > start
+      if (strtotime($end_at) <= strtotime($start_at)) {
+        $msg = 'วันสิ้นสุดต้องหลังวันเริ่มต้น'; $cls = 'danger';
+      } else {
+        $stmt = $conn->prepare("UPDATE promotions SET start_at=?, end_at=?, updated_at=NOW() WHERE promo_id=?");
+        $stmt->bind_param('ssi', $start_at, $end_at, $promo_id);
+        $stmt->execute();
+        $stmt->close();
+
+        // อัปเดตค่าที่แสดงผลในหน้านี้
+        $promo['start_at'] = $start_at;
+        $promo['end_at']   = $end_at;
+
+        $msg = 'อัปเดตช่วงวันเวลาโปรโมชันเรียบร้อย'; $cls = 'success';
+      }
     }
   }
 }
@@ -217,6 +269,15 @@ body{
   background:#202833;
 }
 
+/* Style สำหรับ input datetime-local ให้เข้าธีม */
+input[type="datetime-local"]{
+  background: var(--surface-3);
+  color: var(--text-strong);
+  border:1.5px solid rgba(255,255,255,.12);
+  border-radius:12px;
+  padding:.375rem .5rem;
+}
+
 /* Table */
 .table thead th{
   background:#1a222b; color:var(--brand-300);
@@ -235,12 +296,10 @@ body{
 .h-title{ color:var(--brand-900); font-weight:900 }
 .small-note{ color:var(--text-muted) }
 
-/* ===== Force white text in <select> dropdowns on dark theme ===== */
+/* Force white text in selects */
 select,
 .custom-select,
-.form-control {
-  color: var(--text-strong) !important;
-}
+.form-control { color: var(--text-strong) !important; }
 select option,
 .custom-select option,
 select optgroup {
@@ -253,23 +312,17 @@ select option:checked,
   background: linear-gradient(180deg, #2a9aa1, #137d84) !important;
 }
 select option[disabled],
-.custom-select option[disabled] {
-  color: var(--text-muted) !important;
-}
+.custom-select option[disabled] { color: var(--text-muted) !important; }
 @supports (-webkit-appearance: none) {
-  select,
-  .custom-select {
-    -webkit-text-fill-color: var(--text-strong) !important;
-  }
+  select, .custom-select { -webkit-text-fill-color: var(--text-strong) !important; }
 }
-select[size],
-select[multiple] {
+select[size], select[multiple]{
   background-color: var(--surface-3);
   border-color: rgba(255,255,255,.12);
   color: var(--text-strong);
 }
 
-/* ตัดเงาทั้งหมดในปุ่ม/การ์ด/ท็อปบาร์ */
+/* ตัดเงาทั้งหมด */
 .btn, .cardx, .topbar { box-shadow: none !important; }
 </style>
 </head>
@@ -278,8 +331,8 @@ select[multiple] {
 
   <div class="topbar d-flex align-items-center justify-content-between mb-3">
     <div>
-      <div class="h5 m-0 h-title">รายละเอียดโปรโมชัน • PSU Blue Cafe</div>
-      <small class="small-note">แก้ไขโปร, ผูกเมนู, เปิด/ปิดการใช้งาน</small>
+      <div class="h5 m-0 h-title">รายละเอียดโปรโมชัน </div>
+      
     </div>
     <div class="d-flex align-items-center">
       <a href="promo_create.php" class="btn btn-outline-light btn-sm mr-2">← กลับรายการโปรโมชัน</a>
@@ -303,7 +356,7 @@ select[multiple] {
             <span class="badge-pillx">Max Disc: <?= baht($promo['max_discount']) ?> ฿</span>
           <?php endif; ?>
         </div>
-        <div class="small-note">ช่วงเวลา: <strong class="text-light"><?= h($promo['start_at']) ?></strong> → <strong class="text-light"><?= h($promo['end_at']) ?></strong></div>
+        
         <div class="mt-2">
           สถานะ:
           <?php if($promo['is_active']): ?>
@@ -313,14 +366,38 @@ select[multiple] {
           <?php endif; ?>
         </div>
       </div>
-      <div>
+      <div class="text-right">
         <form method="post" class="m-0">
           <input type="hidden" name="action" value="toggle_active">
-          <button class="btn btn-toggle <?= $promo['is_active']?'btn-danger':'btn-success' ?>">
-            <?= $promo['is_active']?'ปิดการใช้งาน':'เปิดการใช้งาน' ?>
-          </button>
+         
         </form>
       </div>
+    </div>
+
+    <!-- ฟอร์มปรับช่วงวันเวลาใช้งานโปร -->
+    <hr style="border-color: rgba(255,255,255,.08)">
+    <div class="mt-2">
+      <form method="post" class="form-row align-items-end">
+        <input type="hidden" name="action" value="update_dates">
+        <div class="form-group col-md-4">
+          <label for="start_at">เริ่มใช้โปรโมชัน</label>
+          <input id="start_at" name="start_at" type="datetime-local"
+                 class="form-control"
+                 value="<?= h(dt_input_val($promo['start_at'])) ?>"
+                 required>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="end_at">สิ้นสุดโปรโมชัน</label>
+          <input id="end_at" name="end_at" type="datetime-local"
+                 class="form-control"
+                 value="<?= h(dt_input_val($promo['end_at'])) ?>"
+                 required>
+        </div>
+        <div class="form-group col-md-4">
+          <button class="btn btn-primary" style="margin-top: 8px;">บันทึกช่วงวันเวลา</button>
+          <small class="d-block small-note mt-2">* ต้องตั้งค่าวันสิ้นสุดให้หลังวันเริ่มต้น</small>
+        </div>
+      </form>
     </div>
 
     <?php if($msg): ?>

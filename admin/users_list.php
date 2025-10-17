@@ -1,8 +1,5 @@
 <?php
 // admin/users_list.php — รายชื่อผู้ใช้ทั้งหมด + ค้นหา/กรอง + รวมชั่วโมง
-// โทนสีตรงกับหน้า front_store (น้ำเงินเข้ม + ฟ้าหลัก)
-// * ไม่เปลี่ยน logic/SQL *
-
 session_start();
 if (empty($_SESSION['uid'])) { header("Location: ../index.php"); exit; }
 
@@ -18,11 +15,9 @@ function fmtHM(int $sec): string {
   return $h . ':' . str_pad((string)$m, 2, '0', STR_PAD_LEFT) . ' ชม.';
 }
 
-// ===== รับตัวกรอง =====
-$q    = trim((string)($_GET['q'] ?? ''));     // ค้นหา ชื่อ/username/student_ID
-$role = trim((string)($_GET['role'] ?? ''));  // เลือกบทบาท
+$q    = trim((string)($_GET['q'] ?? ''));
+$role = trim((string)($_GET['role'] ?? ''));
 
-// ===== เงื่อนไขค้นหา =====
 $where  = '1=1';
 $types  = '';
 $params = [];
@@ -39,7 +34,6 @@ if ($role !== '') {
   $params[] = $role;
 }
 
-// ===== ดึงผู้ใช้ + รวมชั่วโมงจาก attendance (เฉพาะบันทึกที่ปิดงานแล้ว) =====
 $sql = "
   SELECT
     u.user_id, u.username, u.student_ID, u.name, u.role, u.status,
@@ -79,166 +73,112 @@ if ($types !== '') {
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
-/* ================= FRONT_STORE TONE ================= */
 :root{
   --bg1:#11161b; --bg2:#141b22;
   --surface:#1a2230; --surface-2:#192231; --surface-3:#202a3a;
   --text-strong:#ffffff; --text-normal:#e9eef6; --text-muted:#b9c6d6;
-  --brand-500:#3aa3ff; --brand-400:#7cbcfd; --brand-300:#a9cffd;
-  --ok:#22c55e; --danger:#e53935;
+  --brand-500:#3aa3ff;
   --radius:10px;
 }
-
 html,body{height:100%}
 body{
-  margin:0;
-  background: linear-gradient(180deg,var(--bg1),var(--bg2));
-  color:var(--text-normal);
-  font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  margin:0; background:linear-gradient(180deg,var(--bg1),var(--bg2));
+  color:var(--text-normal); font-family:"Segoe UI",Tahoma,Arial,sans-serif; font-size:16px;
 }
 .container-xl{max-width:1400px}
 
-/* ---------- Topbar ---------- */
-.topbar{
-  position:sticky; top:0; z-index:50; padding:12px 16px; border-radius:var(--radius);
-  background:var(--surface); border:1px solid rgba(255,255,255,.08);
-}
+/* Topbar */
+.topbar{ position:sticky; top:0; z-index:50; padding:12px 16px; border-radius:var(--radius);
+  background:var(--surface); border:1px solid rgba(255,255,255,.08); }
 .brand{font-weight:900; letter-spacing:.3px; color:var(--text-strong)}
-.badge-user{
-  background: var(--surface-3);
-  color: var(--text-strong);
-  font-weight:800; border-radius:999px; border:1px solid rgba(255,255,255,.12)
-}
 .searchbox{
-  background: var(--surface-3);
-  border:1px solid rgba(255,255,255,.12);
-  color:var(--text-normal);
-  border-radius:999px; padding:.45rem .9rem; min-width:260px
+  background: var(--surface-3); border:1px solid rgba(255,255,255,.12);
+  color:var(--text-normal); border-radius:999px; padding:.45rem .9rem; min-width:260px;
 }
-.searchbox::placeholder{ color:#90a3b6 }
 .searchbox:focus{ box-shadow:none; border-color:#6aaeff; color:var(--text-strong) }
-
-.btn-ghost{
-  background: var(--brand-500);
-  border:1px solid #1e6acc; color:#fff; font-weight:800; border-radius:12px;
-}
-.topbar .btn-primary{
-  background: var(--brand-500);
-  border:1px solid #1e6acc; font-weight:800; color:#fff;
-}
-.topbar .btn-light{
-  background: var(--surface-3); color:var(--text-strong); border:1px solid rgba(255,255,255,.14); font-weight:800;
-}
+.btn-ghost{ background:var(--brand-500); border:1px solid #1e6acc; color:#fff; font-weight:800; border-radius:12px; }
 .btn-outline-light{ color:#eaf2ff; border-color: rgba(255,255,255,.18) }
 .btn-outline-light:hover{ background: var(--surface-3); color:#fff }
 
-/* ---------- Card & Table ---------- */
-.cardx{
-  background: var(--surface);
-  color:var(--text-normal);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:var(--radius);
-}
-.table-wrap{ max-height: 68vh; overflow:auto; border-radius:12px }
-
-/* table header sticky + dark */
+/* Card & Table */
+.cardx{ background:var(--surface); color:var(--text-normal); border:1px solid rgba(255,255,255,.08); border-radius:var(--radius); }
+.table-wrap{ max-height:68vh; overflow:auto; border-radius:12px }
+.table{ color:var(--text-normal); table-layout:auto; }
 .table thead th{
-  position: sticky; top: 0; z-index: 1;
-  background: var(--surface-2);
-  color: var(--text-strong);
-  border-bottom:1px solid rgba(255,255,255,.10);
-  font-weight:800;
+  position:sticky; top:0; z-index:1; background:var(--surface-2);
+  color:var(--text-strong); border-bottom:1px solid rgba(255,255,255,.10); font-weight:800;
 }
-.table{ color:var(--text-normal); }
-.table td, .table th{
-  border-color: rgba(255,255,255,.10) !important;
-  vertical-align: middle !important;
+.table td,.table th{
+  border-color:rgba(255,255,255,.10)!important; vertical-align:middle!important;
+  white-space:nowrap;
 }
-.table tbody tr:nth-child(odd){ background: #1c2432; }
-.table tbody tr:nth-child(even){ background: #19212d; }
+.table tbody tr:nth-child(odd){ background:#1c2432 } .table tbody tr:nth-child(even){ background:#19212d }
 .table tbody tr:hover td{ background:#223044; color:var(--text-strong) }
 
-/* ---------- Badges ---------- */
-.badge-role{
-  padding:.35rem .6rem; border-radius:999px; font-weight:800;
-  background: var(--surface-3); color:#eaf6ff; border:1px solid rgba(255,255,255,.14)
-}
-.badge-status{padding:.35rem .6rem; border-radius:999px; font-weight:800}
-/* ✅ สีตามที่ขอ */
-.badge-status-fund{
-  background:#22c55e; color:#ffffff; border:1px solid #16a34a;
-}
-.badge-status-norm{
-  background:#3aa3ff; color:#ffffff; border:1px solid #1e6acc;
+/* Badges */
+.badge-role{ padding:.35rem .6rem; border-radius:999px; font-weight:800; background:var(--surface-3); color:#eaf6ff; border:1px solid rgba(255,255,255,.14) }
+.badge-status{ padding:.35rem .6rem; border-radius:999px; font-weight:800 }
+.badge-status-fund{ background:#22c55e; color:#fff; border:1px solid #16a34a }
+.badge-status-norm{ background:#3aa3ff; color:#fff; border:1px solid #1e6acc }
+
+/* Legend & KPI */
+.legend{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; color:var(--text-strong);
+  background:var(--surface-2); border:1px solid rgba(255,255,255,.10); border-radius:12px; padding:8px 12px; font-weight:700 }
+.dot{width:10px;height:10px;border-radius:50%} .dot-fund{background:#22c55e} .dot-norm{background:#3aa3ff}
+.kpi-chip{ display:inline-flex; align-items:center; gap:6px; background:var(--surface-3); color:#eaf6ff; border:1px solid rgba(255,255,255,.14); border-radius:999px; padding:6px 10px; font-weight:800 }
+
+/* Admin & Actions */
+.btn-admin{ background:linear-gradient(180deg,#56b2ff,#3aa3ff); border:1px solid #1e6acc; color:#fff!important; font-weight:900; border-radius:12px; padding:.35rem .8rem; box-shadow:0 8px 22px rgba(58,163,255,.28) }
+.btn-admin .bi{ margin-right:.35rem }
+.col-actions{ display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap }
+.btn-edit{ background:linear-gradient(180deg,#f6ad55,#f59e0b); border:1px solid #d97706; color:#0b0f16!important; font-weight:900; border-radius:10px; padding:.35rem .7rem }
+.btn-hours{ background:linear-gradient(180deg,#a78bfa,#8b5cf6); border:1px solid #6d28d9; color:#fff!important; font-weight:900; border-radius:10px; padding:.35rem .7rem }
+.btn-edit .bi,.btn-hours .bi{ margin-right:.35rem }
+
+/* ====== iPad Responsive (เห็นครบ ไม่ต้องเลื่อน) ====== */
+/* แนวนอน ≤1024px */
+@media (max-width:1024px){
+  body{ font-size:15px }
+  .table-wrap{ max-height:64vh }
+  .topbar{ padding:10px 12px }
+  .topbar .form-inline .searchbox{ min-width:220px }
+
+  /* ตารางแบบคงที่ + ตัดบรรทัด */
+  .table{ table-layout:fixed }
+  .table td,.table th{ white-space:normal; overflow-wrap:anywhere; padding:.5rem .6rem; font-size:14.5px }
+
+  /* สัดส่วนคอลัมน์ (รวม ~100%) */
+  .c-user{ width:14% } .c-name{ width:18% } .c-sid{ width:14% }
+  .c-role{ width:10% } .c-status{ width:12% }
+  .c-norm{ width:10%; text-align:center } .c-fund{ width:10%; text-align:center }
+  .c-total{ width:12%; text-align:center } .c-act{ width:10% }
+
+  /* ย่อ badge & ปุ่ม */
+  .badge-role,.badge-status{ padding:.25rem .45rem; font-size:12px }
+  .btn-edit,.btn-hours{ padding:.3rem .45rem }
+  .btn-edit .bi,.btn-hours .bi{ margin-right:0 }
+  .btn-edit .label,.btn-hours .label{ display:none } /* เหลือไอคอน */
 }
 
-/* ---------- Helper row ---------- */
-.legend{
-  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-  color:var(--text-strong);
-  background: var(--surface-2);
-  border:1px solid rgba(255,255,255,.10); border-radius:12px; padding:8px 12px; font-weight:700
+/* แนวตั้ง / iPad mini ≤820px */
+@media (max-width:820px){
+  body{ font-size:14px }
+  .topbar{ display:block }
+  .topbar .d-flex.align-items-center:first-child{ margin-bottom:10px }
+  .topbar .form-inline{ width:100%; flex-wrap:wrap }
+  .topbar .form-inline .searchbox{ flex:1 1 220px; min-width:0; margin-bottom:8px }
+  .topbar .form-inline select{ flex:0 0 180px; margin-bottom:8px }
+
+  .table-wrap{ max-height:58vh }
+  .table td,.table th{ font-size:13.5px }
+
+  /* สัดส่วนอีกรอบให้พอดีแนวตั้ง */
+  .c-user{ width:16% } .c-name{ width:20% } .c-sid{ width:14% }
+  .c-role{ width:10% } .c-status{ width:12% }
+  .c-norm{ width:9% } .c-fund{ width:9% } .c-total{ width:10% } .c-act{ width:10% }
+
+  .col-actions{ gap:6px }
 }
-.legend .text-muted{ color:var(--text-muted) !important }
-.dot{width:10px; height:10px; border-radius:50%}
-.dot-fund{background:#22c55e} .dot-norm{background:#3aa3ff}
-
-/* ---------- Small utilities ---------- */
-.kpi-chip{
-  display:inline-flex; align-items:center; gap:6px;
-  background: var(--surface-3); color:#eaf6ff; border:1px solid rgba(255,255,255,.14);
-  border-radius:999px; padding:6px 10px; font-weight:800
-}
-
-/* Focus ring */
-:focus-visible{ outline:3px solid rgba(58,163,255,.55); outline-offset:3px; border-radius:10px }
-
-/* Scrollbar */
-*::-webkit-scrollbar{width:10px;height:10px}
-*::-webkit-scrollbar-thumb{background:#2a3442;border-radius:10px}
-*::-webkit-scrollbar-thumb:hover{background:#334559}
-*::-webkit-scrollbar-track{background:#131923}
-
-/* === Admin button: Front_Store blue === */
-.btn-admin{
-  background: linear-gradient(180deg, #56b2ff, #3aa3ff);
-  border: 1px solid #1e6acc;
-  color:#fff !important;
-  font-weight:900;
-  border-radius:12px;
-  padding:.35rem .8rem;
-  box-shadow:0 8px 22px rgba(58,163,255,.28);
-}
-.btn-admin .bi{ margin-right:.35rem; }
-.btn-admin:hover{ filter:brightness(1.05); transform:translateY(-1px); color:#fff !important; }
-.btn-admin:focus{ outline:3px solid rgba(58,163,255,.35); outline-offset:2px; }
-
-/* ❌ ลบ avatar ออก — ไม่ใช้แล้ว */
-/* === Action buttons: ชัดเจนบนพื้นเข้ม === */
-.btn-edit{
-  background: linear-gradient(180deg,#f6ad55,#f59e0b);
-  border:1px solid #d97706;
-  color:#0b0f16 !important;          /* ตัวอักษรเข้ม อ่านง่ายบนปุ่มสีส้ม */
-  font-weight:900;
-  border-radius:10px;
-  padding:.35rem .7rem;
-  box-shadow:0 8px 18px rgba(0,0,0,.25);
-}
-.btn-edit:hover{ filter:brightness(1.05); transform:translateY(-1px); }
-.btn-edit:focus{ outline:3px solid rgba(245,158,11,.45); outline-offset:2px; }
-
-.btn-hours{
-  background: linear-gradient(180deg,#a78bfa,#8b5cf6);
-  border:1px solid #6d28d9;
-  color:#ffffff !important;          /* ตัวอักษรขาวบนพื้นม่วง */
-  font-weight:900;
-  border-radius:10px;
-  padding:.35rem .7rem;
-  box-shadow:0 8px 18px rgba(0,0,0,.25);
-}
-.btn-hours:hover{ filter:brightness(1.05); transform:translateY(-1px); }
-.btn-hours:focus{ outline:3px solid rgba(139,92,246,.45); outline-offset:2px; }
-
 </style>
 </head>
 <body>
@@ -246,7 +186,7 @@ body{
 
   <!-- Topbar -->
   <div class="topbar d-flex align-items-center justify-content-between mb-3">
-    <div class="d-flex align-items-center">
+    <div class="d-flex align-items-center flex-wrap">
       <h4 class="brand mb-0 mr-3"><i class="bi bi-people"></i> ผู้ใช้ทั้งหมด</h4>
       <form class="form-inline" method="get">
         <input name="q" class="form-control form-control-sm searchbox mr-2"
@@ -254,41 +194,30 @@ body{
                placeholder="ค้นหา: ชื่อ / username / student_ID" aria-label="ค้นหา">
         <select name="role" class="form-control form-control-sm mr-2" style="background:var(--surface-3);color:var(--text-normal);border:1px solid rgba(255,255,255,.12)">
           <option value="">ทุกบทบาท</option>
-          <?php
-            $roles = ['admin','employee'];
-            foreach($roles as $r){
-              $sel = ($role===$r)?'selected':''; ?>
-              <option value="<?= h($r) ?>" <?= $sel ?>><?= h($r) ?></option>
-          <?php } ?>
+          <?php foreach(['admin','employee'] as $r): $sel = ($role===$r)?'selected':''; ?>
+            <option value="<?= h($r) ?>" <?= $sel ?>><?= h($r) ?></option>
+          <?php endforeach; ?>
         </select>
         <button class="btn btn-sm btn-ghost"><i class="bi bi-search"></i> ค้นหา</button>
       </form>
     </div>
     <div class="d-flex align-items-center">
       <a href="add_user.php" class="btn btn-primary btn-sm mr-2"><i class="bi bi-person-plus"></i> เพิ่มผู้ใช้</a>
-      <a href="adminmenu.php" class="btn btn-admin btn-sm mr-2">
-        <i class="bi bi-gear"></i> เมนูเเอดมิน
-      </a>
+      <a href="adminmenu.php" class="btn btn-admin btn-sm mr-2"><i class="bi bi-gear"></i> เมนูเเอดมิน</a>
       <a class="btn btn-sm btn-outline-light" href="../logout.php"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</a>
     </div>
   </div>
 
-  <!-- Legend + Quick KPI -->
+  <!-- Legend + KPI -->
   <div class="cardx p-2 mb-2">
     <div class="d-flex align-items-center justify-content-between flex-wrap">
       <div class="legend mb-2 mb-sm-0">
         <span>สถานะเวลา:</span>
         <span class="dot dot-norm"></span> ชั่วโมงปกติ
         <span class="dot dot-fund ml-2"></span> ชั่วโมงทุน
-        <span class="ml-3 text-muted" style="font-weight:600">*รวมเฉพาะรายการที่ปิดงานแล้ว</span>
+        <span class="ml-3" style="color:var(--text-muted);font-weight:600">*รวมเฉพาะรายการที่ปิดงานแล้ว</span>
       </div>
-      <div class="kpi-chip">
-        <i class="bi bi-people"></i>
-        รวมผู้ใช้ที่ตรงเงื่อนไข:
-        <strong class="ml-1">
-          <?= isset($users) && $users instanceof mysqli_result ? (int)$users->num_rows : 0 ?>
-        </strong>
-      </div>
+      <div class="kpi-chip"><i class="bi bi-people"></i> รวมผู้ใช้ที่ตรงเงื่อนไข: <strong class="ml-1"><?= isset($users)&&$users instanceof mysqli_result ? (int)$users->num_rows : 0 ?></strong></div>
     </div>
   </div>
 
@@ -298,17 +227,15 @@ body{
       <table class="table table-sm mb-0">
         <thead>
           <tr>
-            <!-- ✅ ย้าย Username มาอยู่หน้าสุด และลบ avatar ออก -->
-            <th style="min-width:150px">Username</th>
-            <th style="min-width:220px">ชื่อ-นามสกุล</th>
-            <th style="min-width:130px">Student ID</th>
-            <th style="min-width:110px">Role</th>
-            <th style="min-width:120px">Status</th>
-            <th class="text-right" style="min-width:130px">ชั่วโมงปกติ</th>
-            <th class="text-right" style="min-width:130px">ชั่วโมงทุน</th>
-            <th class="text-right" style="min-width:130px">รวมทั้งหมด</th>
-            
-          
+            <th class="c-user">Username</th>
+            <th class="c-name">ชื่อ-นามสกุล</th>
+            <th class="c-sid">Student ID</th>
+            <th class="c-role">Role</th>
+            <th class="c-status">Status</th>
+            <th class="c-norm text-right">ชั่วโมงปกติ</th>
+            <th class="c-fund text-right">ชั่วโมงทุน</th>
+            <th class="c-total text-right">รวมทั้งหมด</th>
+            <th class="c-act text-right">จัดการ</th>
           </tr>
         </thead>
         <tbody>
@@ -319,32 +246,27 @@ body{
             $sec_total  = $sec_fund + $sec_normal;
           ?>
             <tr>
-              <!-- username first -->
-              <td><?= h($u['username']) ?></td>
-              <!-- แสดงเฉพาะชื่อ (ไม่มี avatar ตัวอักษรเดี่ยวแล้ว) -->
-              <td><?= h($u['name']) ?></td>
-              <td><?= h($u['student_ID'] ?? '') ?></td>
-              <td><span class="badge-role"><?= h($u['role'] ?: '-') ?></span></td>
-              <td>
+              <td class="c-user"><?= h($u['username']) ?></td>
+              <td class="c-name"><?= h($u['name']) ?></td>
+              <td class="c-sid"><?= h($u['student_ID'] ?? '') ?></td>
+              <td class="c-role"><span class="badge-role"><?= h($u['role'] ?: '-') ?></span></td>
+              <td class="c-status">
                 <?php if($u['status']==='ชั่วโมงทุน'): ?>
                   <span class="badge-status badge-status-fund">ชั่วโมงทุน</span>
                 <?php else: ?>
                   <span class="badge-status badge-status-norm">ชั่วโมงปกติ</span>
                 <?php endif; ?>
               </td>
-              <!-- ✅ สีตามที่ขอ: ปกติ=ฟ้า, ทุน=เขียว (สีอยู่ใน CSS ของ badge status แล้ว) -->
-              <td class="text-right"><?= fmtHM($sec_normal) ?></td>
-              <td class="text-right"><?= fmtHM($sec_fund) ?></td>
-              <td class="text-right"><strong><?= fmtHM($sec_total) ?></strong></td>
-              
-              <td class="text-right">
-<a class="btn btn-edit btn-sm mr-1" href="edit_user.php?id=<?= (int)$u['user_id'] ?>">
-  <i class="bi bi-pencil-square"></i> แก้ไข
-</a>
-<a class="btn btn-hours btn-sm" href="user_detail.php?id=<?= (int)$u['user_id'] ?>">
-  <i class="bi bi-clock-history"></i> ชั่วโมง
-</a>
-
+              <td class="c-norm text-right"><?= fmtHM($sec_normal) ?></td>
+              <td class="c-fund text-right"><?= fmtHM($sec_fund) ?></td>
+              <td class="c-total text-right"><strong><?= fmtHM($sec_total) ?></strong></td>
+              <td class="c-act text-right col-actions">
+                <a class="btn btn-edit btn-sm" href="edit_user.php?id=<?= (int)$u['user_id'] ?>" title="แก้ไข">
+                  <i class="bi bi-pencil-square"></i> <span class="label">แก้ไข</span>
+                </a>
+                <a class="btn btn-hours btn-sm" href="user_detail.php?id=<?= (int)$u['user_id'] ?>" title="ชั่วโมง">
+                  <i class="bi bi-clock-history"></i> <span class="label">ชั่วโมง</span>
+                </a>
               </td>
             </tr>
           <?php endwhile; ?>
@@ -358,7 +280,6 @@ body{
 
 </div>
 
-<!-- UX: โฟกัสช่องค้นหาเร็วด้วยปุ่ม / -->
 <script>
 document.addEventListener('keydown', e=>{
   if(e.key === '/'){

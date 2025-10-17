@@ -1,5 +1,5 @@
 <?php
-// admin/user_detail.php — โปรไฟล์ชั่วโมงทำงาน (KPI สีเขียว/ฟ้า/เทา + chips header)
+// admin/user_detail.php — โปรไฟล์ชั่วโมงทำงาน (ธีมเดียวกับ user_profile.php)
 declare(strict_types=1);
 session_start();
 if (empty($_SESSION['uid'])) { header("Location: ../index.php"); exit; }
@@ -42,7 +42,7 @@ $user = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 if (!$user) { header('Location: users_list.php'); exit; }
 
-// ===== Sum by hour_type (closed only) =====
+// ===== Sum by hour_type (เฉพาะปิดงานแล้ว) =====
 $sqlSum = "
   SELECT hour_type,
          COALESCE(SUM(
@@ -75,7 +75,7 @@ $hrs_normal_decimal = round($sec_normal / 3600, 2);
 $hrs_fund_decimal   = round($sec_fund   / 3600, 2);
 $wage_normal        = $hrs_normal_decimal * $NORMAL_RATE;
 
-// ===== Logs (all, include open) =====
+// ===== Logs (ทั้งหมดในช่วงที่เลือก) =====
 $sqlLogs = "
   SELECT attendance_id, date_in, time_in, date_out, time_out, hour_type
   FROM attendance
@@ -94,144 +94,207 @@ $stmt->close();
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<title>โปรไฟล์ของฉัน • ชั่วโมงทำงาน</title>
+<title>รายละเอียดผู้ใช้ • ชั่วโมงทำงาน</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet"
  href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet"
  href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
+/* ============================
+   PSU Blue Café • Minimal/Clean Dark (เหมือน user_profile.php)
+   ============================ */
 :root{
-  --text-strong:#F4F7F8; --text-normal:#E6EBEE; --text-muted:#B9C2C9;
-  --bg-grad1:#222831; --bg-grad2:#393E46;
-  --surface:#1C2228; --surface-2:#232A31; --surface-3:#2B323A;
-  --ink:#F4F7F8; --ink-muted:#CFEAED;
-  --brand-900:#EEEEEE; --brand-700:#BFC6CC; --brand-500:#00ADB5; --brand-400:#27C8CF; --brand-300:#73E2E6;
-  --ok:#2ecc71; --danger:#e53935;
-  --shadow-lg:0 22px 66px rgba(0,0,0,.55); --shadow:0 14px 32px rgba(0,0,0,.42);
-  --radius:14px;
+  /* พื้นหลังหลัก */
+  --bg-grad1:#11161B;
+  --bg-grad2:#141B22;
+
+  /* พื้นผิว */
+  --surface:#1A2230;
+  --surface-2:#192231;
+  --surface-3:#202A3A;
+
+  /* ตัวอักษร */
+  --ink:#E9EEF6;
+  --ink-muted:#B9C6D6;
+  --text-strong:#FFFFFF;
+
+  /* แบรนด์ฟ้า */
+  --brand-500:#3AA3FF;
+  --brand-400:#7CBCFD;
+  --brand-300:#A9CFFD;
+  --brand-border:#1E6ACC;
+
+  /* ชั่วโมงทุน (เขียว) */
+  --fund-500:#22C55E;
+  --fund-border:#15803D;
+
+  /* ชั่วโมงปกติ (ฟ้า gradient) */
+  --normal-500:#2EA7FF;
+  --normal-600:#1F7EE8;
+  --normal-border:#1669C9;
+
+  --warn:#f0ad4e;
+  --radius:10px;
 }
+
+/* พื้นหลัง/ฟอนต์รวม */
 html,body{height:100%}
 body{
-  background:
-    radial-gradient(900px 360px at 110% -10%, rgba(39,200,207,.18), transparent 65%),
-    linear-gradient(135deg,var(--bg-grad1),var(--bg-grad2));
-  color:var(--text-strong);
+  background: linear-gradient(180deg,var(--bg-grad1),var(--bg-grad2)) !important;
+  color: var(--ink) !important;
   font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  letter-spacing:.1px;
 }
+
+/* คอนเทนเนอร์ */
 .wrap{ max-width:1100px; margin:26px auto; padding:0 14px; }
 
-/* ===== Topbar ===== */
+/* Topbar */
 .topbar{
-  background:rgba(28,34,40,.78);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:var(--radius);
+  position:sticky; top:0; z-index:20;
+  background: var(--surface) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
   padding:12px 16px;
-  box-shadow:var(--shadow-lg);
-  backdrop-filter: blur(6px);
 }
-.topbar .title{ font-weight:900; color:var(--brand-900) }
-.badge-time{ background:#2f363e; border-radius:10px; padding:.35rem .6rem }
-
-/* chips */
-.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px }
-.chip{
-  display:inline-flex; align-items:center; gap:6px;
-  padding:.32rem .65rem; border-radius:999px; font-weight:800;
-  border:1px solid rgba(255,255,255,.14);
-  background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
-  color:var(--brand-900);
+.brand{font-weight:900; letter-spacing:.3px; color:var(--text-strong)}
+.badge-chip{
+  background: #2EA7FF !important;
+  color: #082238 !important;
+  border: 1px solid var(--normal-border) !important;
+  border-radius: 999px !important;
+  padding:.25rem .6rem; font-weight:800 !important;
 }
-.chip i{ opacity:.9 }
-.chip-blue{ background:linear-gradient(180deg,#3aa2ff,#2a79db); border-color:rgba(58,162,255,.45); color:#08131b }
-.chip-gray{ background:linear-gradient(180deg,#6e7b86,#58636d); border-color:rgba(255,255,255,.18) }
-.chip-green{ background:linear-gradient(180deg,#2ecc71,#27ae60); border-color:rgba(46,204,113,.45); color:#06180e }
-.chip-cyan{  background:linear-gradient(180deg,#00adb5,#07949b); border-color:rgba(0,173,181,.45); color:#061217 }
+.topbar small .badge-chip.status{
+  background: linear-gradient(180deg, var(--normal-500), var(--normal-600)) !important;
+  border-color: var(--normal-border) !important;
+  color:#fff !important;
+}
 
-/* ===== Card / form ===== */
-.cardx{
-  background: linear-gradient(180deg,var(--surface),var(--surface-2));
+/* นาฬิกาแคปซูล */
+.clock{
+  display:inline-flex;align-items:center;gap:8px;
+  background: var(--surface-3) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius:999px; padding:6px 10px; font-weight:800;
   color: var(--ink);
-  border:1px solid rgba(255,255,255,.06);
-  border-radius:var(--radius);
-  box-shadow:var(--shadow);
 }
-.form-inline label{ color:var(--brand-700); font-weight:700 }
-.form-control{
-  color:var(--text-strong); background:var(--surface-3);
-  border:1.5px solid rgba(255,255,255,.10); border-radius:12px;
-}
-.form-control:focus{
-  border-color: var(--brand-500);
-  box-shadow:0 0 0 .2rem rgba(0,173,181,.25);
-  background:#2F373F;
-}
+.clock .bi{opacity:.9}
+
+/* ปุ่ม */
 .btn-primary{
-  background:linear-gradient(180deg, var(--brand-500), #07949B);
-  border:0; border-radius:12px; font-weight:900; color:#061217;
-  box-shadow:0 8px 22px rgba(0,173,181,.25);
+  background: var(--brand-500) !important;
+  border: 1px solid var(--brand-border) !important;
+  color:#fff !important;
+  font-weight:800 !important;
+  box-shadow:none !important;
+  text-shadow:none !important;
+  border-radius: var(--radius) !important;
+}
+.btn-primary:hover{ filter:brightness(1.06) }
+.btn-outline-light{
+  background: transparent !important;
+  color: var(--ink) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  box-shadow:none !important;
+  border-radius: var(--radius) !important;
 }
 
-/* ===== KPI tiles (ตามภาพตัวอย่าง) ===== */
-.kpi{ display:grid; grid-template-columns: repeat(3,minmax(220px,1fr)); gap:14px; }
+/* การ์ด/หัวท้าย */
+.cardx{
+  background: var(--surface) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+}
+.co-head,.co-foot{ background: var(--surface-2) !important; }
+
+/* อินพุตวันที่ */
+input[type="date"]{
+  background: var(--surface-2) !important;
+  color: var(--ink) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-radius: 10px !important;
+}
+
+/* KPI tiles */
+.kpi{ display:grid; grid-template-columns: repeat(3,minmax(220px,1fr)); gap:12px; }
 .tile{
-  border-radius:16px; padding:14px 16px; box-shadow:0 10px 24px rgba(0,0,0,.25);
-  border:1px solid rgba(0,0,0,.2);
+  background: var(--surface-2) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  padding:14px 16px;
 }
-.tile .ttl{ font-weight:900; letter-spacing:.2px; display:flex; align-items:center; gap:8px }
-.tile .n{ font-size:1.9rem; font-weight:900; line-height:1.15 }
-.tile small{ opacity:.95 }
+.tile .l{ font-weight:800; color:var(--text-strong); display:flex; align-items:center; gap:8px }
+.tile .n{ font-size:1.7rem; font-weight:900; color:#fff !important; line-height:1.2 }
 
-/* สีตามการ์ด */
+/* สีพิเศษให้สอดคล้องกับ user_profile */
 .tile-fund{
-  background:linear-gradient(180deg,#25b05f,#1f9a53);
-  color:#eaffef; border-color: rgba(12,68,41,.45);
+  background: linear-gradient(180deg, var(--fund-500), #16A34A) !important;
+  border-color: var(--fund-border) !important;
 }
 .tile-normal{
-  background:linear-gradient(180deg,#2f8fff,#2c7be7);
-  color:#eaf4ff; border-color: rgba(7,36,86,.45);
+  background: linear-gradient(180deg, var(--normal-500), var(--normal-600)) !important;
+  border-color: var(--normal-border) !important;
 }
-.tile-wage{
-  background:linear-gradient(180deg,#2b3138,#242a31);
-  color:#e9eef3; border-color: rgba(255,255,255,.08);
+.tile-fund .l, .tile-fund .n, .tile-normal .l, .tile-normal .n { color:#fff !important; }
+
+/* pill */
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:.15rem .6rem;font-weight:800}
+.pill-fund{
+  background: var(--fund-500) !important;
+  border: 1.5px solid var(--fund-border) !important;
+  color:#fff !important;
+}
+.pill-normal{
+  background: var(--brand-500) !important;
+  border: 1.5px solid var(--brand-border) !important;
+  color:#fff !important;
 }
 
-/* ===== Table ===== */
+/* ตาราง */
 .table thead th{
-  background:#222a31; color:var(--brand-300);
-  border-bottom:2px solid rgba(255,255,255,.08); font-weight:800;
+  background: var(--surface-2) !important;
+  color:#fff !important;
+  border-bottom: 1px solid rgba(255,255,255,.10) !important;
+  font-weight:800;
 }
-.table td, .table th{ border-color: rgba(255,255,255,.08) !important; color:var(--text-normal) }
-.table tbody tr:hover td{ background:#20262d; color:var(--text-strong) }
+.table td,.table th{
+  border-color: rgba(255,255,255,.08) !important;
+  color: var(--ink) !important;
+}
 
-/* pill in table */
-.pill{display:inline-block;border-radius:999px;padding:.15rem .6rem;font-weight:800;border:1px solid rgba(255,255,255,.18)}
-.pill-fund{background:rgba(46,204,113,.12); color:#7ee2a6; border-color:rgba(46,204,113,.35)}
-.pill-normal{background:rgba(0,173,181,.12); color:#7fdfe3; border-color:rgba(0,173,181,.35)}
+/* ขนาดตัวอักษรให้เสมอ ๆ */
+body, .table, .btn, input, label, .badge, .pill{ font-size:14.5px !important; }
+
+/* Toggle บันทึก (ซ่อนเริ่มต้น) */
+#logsCard.is-hidden #logsBody{ display:none; }
+#toggleLogsBtn .bi{ margin-right:4px; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <!-- Header -->
+  <!-- Topbar -->
   <div class="topbar d-flex align-items-center justify-content-between mb-3">
     <div>
-      <div class="h5 m-0 title"><i class="bi bi-phone"></i> โปรไฟล์ของฉัน · ชั่วโมงทำงาน</div>
-      <div class="chips">
-        <span class="chip chip-blue"><i class="bi bi-person-badge"></i> บทบาท: <strong><?= h($user['role']) ?></strong></span>
-        <span class="chip chip-gray"><i class="bi bi-hash"></i> รหัสนักศึกษา: <strong><?= h((string)($user['student_ID'] ?? '-')) ?></strong></span>
-        <?php
-          $statusTxt   = (string)($user['status'] ?? '');
-          $statusClass = ($statusTxt === 'ชั่วโมงทุน') ? 'chip chip-green' : 'chip chip-cyan';
-          $statusIcon  = ($statusTxt === 'ชั่วโมงทุน') ? 'bi bi-award' : 'bi bi-lightning-charge';
-        ?>
-        <span class="<?= $statusClass ?>"><i class="<?= $statusIcon ?>"></i> สถานะ: <strong><?= h($statusTxt ?: '-') ?></strong></span>
-      </div>
+      <div class="h5 m-0 brand"><i class="bi bi-person-badge"></i> ชั่วโมงทำงาน</div>
+      <small class="text-light">
+        <i class="bi bi-person"></i> ผู้ใช้:
+        <span class="badge-chip"><?= h($user['username']) ?></span>
+        &nbsp;•&nbsp;<i class="bi bi-pass"></i> รหัสนักศึกษา:
+        <span class="badge-chip"><?= h($user['student_ID'] ?: '-') ?></span>
+        &nbsp;•&nbsp;<i class=""></i> สถานะ:
+        <span class="badge-chip status"><?= h($user['status'] ?: '-') ?></span>
+      </small>
     </div>
     <div class="d-flex align-items-center" style="gap:8px">
-      <span class="badge badge-time">🕒 <?= date('H:i:s') ?></span>
-      <a href="users_list.php" class="btn btn-sm btn-outline-light">← รายชื่อผู้ใช้</a>
-      <a href="adminmenu.php" class="btn btn-sm btn-outline-light">หน้า Admin</a>
+      <div class="clock"><i class="bi bi-clock"></i><span id="nowClock">--:--:--</span></div>
+      <a href="users_list.php" class="btn btn-sm btn-outline-light"><i class="bi bi-people"></i> รายชื่อผู้ใช้</a>
+      <a href="adminmenu.php" class="btn btn-sm btn-outline-light"><i class="bi bi-gear"></i> หน้า Admin</a>
     </div>
   </div>
 
@@ -239,83 +302,132 @@ body{
   <div class="cardx p-3 mb-3">
     <form class="form-inline" method="get">
       <input type="hidden" name="id" value="<?= (int)$uid ?>">
-      <label class="mr-2"><i class="bi bi-calendar-week"></i> ช่วงวันที่</label>
+      <label class="mr-2" style="color:var(--text-strong)"><i class="bi bi-calendar2-week"></i> ช่วงวันที่</label>
       <input type="date" name="start" class="form-control mr-2" value="<?= h($start_date) ?>">
       <span class="mr-2">ถึง</span>
       <input type="date" name="end" class="form-control mr-2" value="<?= h($end_date) ?>">
       <button class="btn btn-primary"><i class="bi bi-search"></i> แสดง</button>
-      <span class="ml-3 text-muted">* คิดเฉพาะรายการที่ “ปิดงานแล้ว”</span>
+      
     </form>
   </div>
 
   <!-- KPI tiles -->
   <div class="kpi mb-3">
     <div class="tile tile-fund">
-      <div class="ttl"><i class="bi bi-send-check"></i> ชั่วโมงทุน (รวมถึงงานที่กำลังทำ)</div>
-      <div class="n mt-1"><?= fmtHM($sec_fund) ?></div>
-      <small class="d-block mt-2">ปิดงานแล้ว: <?= fmtHM($sec_fund) ?> (≈ <?= number_format($hrs_fund_decimal,2) ?> ชม.)</small>
+      <div class="l"><i class="bi bi-mortarboard"></i> ชั่วโมงทุน (เฉพาะที่ปิดงานแล้ว)</div>
+      <div class="n"><?= fmtHM($sec_fund) ?></div>
     </div>
 
     <div class="tile tile-normal">
-      <div class="ttl"><i class="bi bi-briefcase"></i> ชั่วโมงปกติ (รวมถึงงานที่กำลังทำ)</div>
-      <div class="n mt-1"><?= fmtHM($sec_normal) ?></div>
-      <small class="d-block mt-2">ปิดงานแล้ว: <?= fmtHM($sec_normal) ?> (≈ <?= number_format($hrs_normal_decimal,2) ?> ชม.)</small>
+      <div class="l"><i class="bi bi-briefcase"></i> ชั่วโมงปกติ (เฉพาะที่ปิดงานแล้ว)</div>
+      <div class="n"><?= fmtHM($sec_normal) ?></div>
     </div>
 
-    <div class="tile tile-wage">
-      <div class="ttl"><i class="bi bi-cash-coin"></i> ค่าตอบแทนชั่วโมงปกติ</div>
-      <div class="n mt-1"><?= fmtMoney($wage_normal) ?> ฿</div>
-      <small class="d-block mt-2">อัตรา: <?= fmtMoney($NORMAL_RATE) ?> ฿/ชม.</small>
+    <div class="tile">
+      <div class="l"><i class="bi bi-cash-coin"></i> ค่าตอบแทนชั่วโมงปกติ</div>
+      <div class="n"><?= fmtMoney($wage_normal) ?> ฿</div>
+      <div class="small mt-1" style="color:var(--ink-muted)"><i class="bi bi-info-circle"></i> อัตรา: <?= fmtMoney($NORMAL_RATE) ?> ฿/ชม.</div>
     </div>
   </div>
 
   <!-- Logs -->
-  <div class="cardx p-3 mb-4">
+  <div class="cardx p-3 mb-4" id="logsCard">
     <div class="d-flex align-items-center justify-content-between mb-2">
-      <h6 class="m-0" style="color:var(--brand-900); font-weight:800">บันทึกเวลาในช่วงที่เลือก</h6>
-      <span class="text-muted small">แสดงผลล่าสุดก่อน</span>
+      <h6 class="m-0" style="color:var(--text-strong); font-weight:800"><i class="bi bi-journal-text"></i> บันทึกเวลาในช่วงที่เลือก</h6>
+      <div class="d-flex align-items-center" style="gap:8px">
+        <button id="toggleLogsBtn" type="button" class="btn btn-sm btn-outline-light" style="font-weight:800">
+          <i class="bi bi-eye"></i> แสดงบันทึก
+        </button>
+      </div>
     </div>
-    <div class="table-responsive">
-      <table class="table table-sm mb-0">
-        <thead>
-          <tr>
-            <th style="width:140px">วันที่เข้า</th>
-            <th style="width:110px">เวลาเข้า</th>
-            <th style="width:140px">วันที่ออก</th>
-            <th style="width:110px">เวลาออก</th>
-            <th style="width:130px">ชนิดชั่วโมง</th>
-            <th class="text-right" style="width:140px">ชั่วโมงรวม</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if($logs->num_rows === 0): ?>
-            <tr><td colspan="6" class="text-center text-muted">ไม่มีข้อมูลในช่วงที่เลือก</td></tr>
-          <?php else: ?>
-            <?php while($r = $logs->fetch_assoc()):
-              $dur = '-';
-              if (trim($r['time_out']) !== '00:00:00') {
-                $s = strtotime($r['date_in'].' '.$r['time_in']);
-                $e = strtotime($r['date_out'].' '.$r['time_out']);
-                if ($s && $e && $e >= $s) { $dur = fmtHM($e - $s); }
-              }
-              $pill = $r['hour_type']==='fund' ? 'pill pill-fund' : 'pill pill-normal';
-              $lbl  = $r['hour_type']==='fund' ? 'ชั่วโมงทุน'   : 'ชั่วโมงปกติ';
-            ?>
-              <tr>
-                <td><?= h($r['date_in']) ?></td>
-                <td><?= h($r['time_in']) ?></td>
-                <td><?= h($r['date_out']) ?></td>
-                <td><?= h($r['time_out']) ?></td>
-                <td><span class="<?= $pill ?>"><?= h($lbl) ?></span></td>
-                <td class="text-right"><?= h($dur) ?></td>
-              </tr>
-            <?php endwhile; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
+
+    <div id="logsBody">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th style="width:140px"><i class="bi bi-calendar-event"></i> วันที่เข้า</th>
+              <th style="width:110px"><i class="bi bi-alarm"></i> เวลาเข้า</th>
+              <th style="width:140px"><i class="bi bi-calendar2-event"></i> วันที่ออก</th>
+              <th style="width:110px"><i class="bi bi-alarm"></i> เวลาออก</th>
+              <th style="width:130px"><i class="bi bi-tag"></i> ชนิดชั่วโมง</th>
+              <th class="text-right" style="width:140px"><i class="bi bi-stopwatch"></i> ชั่วโมงรวม</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if($logs->num_rows === 0): ?>
+              <tr><td colspan="6" class="text-center" style="color:var(--ink-muted)"><i class="bi bi-emoji-neutral"></i> ไม่มีข้อมูลในช่วงที่เลือก</td></tr>
+            <?php else: ?>
+              <?php while($r = $logs->fetch_assoc()):
+                $dur = '-';
+                if (trim($r['time_out']) !== '00:00:00') {
+                  $s = strtotime($r['date_in'].' '.$r['time_in']);
+                  $e = strtotime($r['date_out'].' '.$r['time_out']);
+                  if ($s && $e && $e >= $s) { $dur = fmtHM($e - $s); }
+                }
+                $pill = $r['hour_type']==='fund' ? 'pill pill-fund' : 'pill pill-normal';
+                $lbl  = $r['hour_type']==='fund' ? 'ชั่วโมงทุน'   : 'ชั่วโมงปกติ';
+              ?>
+                <tr>
+                  <td><?= h($r['date_in']) ?></td>
+                  <td><?= h($r['time_in']) ?></td>
+                  <td><?= h($r['date_out']) ?></td>
+                  <td><?= h($r['time_out']) ?></td>
+                  <td><span class="<?= $pill ?>"><i class="bi bi-tags"></i> <?= h($lbl) ?></span></td>
+                  <td class="text-right"><?= h($dur) ?></td>
+                </tr>
+              <?php endwhile; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div> <!-- /#logsBody -->
+  </div>   <!-- /#logsCard -->
 
 </div>
+
+<!-- นาฬิกาแบบสด -->
+<script>
+(function(){
+  const el = document.getElementById('nowClock');
+  if(!el) return;
+  function pad(n){return (n<10?'0':'')+n}
+  function tick(){
+    const d = new Date();
+    el.textContent = [pad(d.getHours()),pad(d.getMinutes()),pad(d.getSeconds())].join(':');
+  }
+  tick(); setInterval(tick, 1000);
+})();
+</script>
+
+<!-- Toggle แสดง/ซ่อนบันทึก (ค่าเริ่มต้น = ซ่อน) -->
+<script>
+(function(){
+  const KEY = 'psu.userdetail.logs.hidden'; // แยกคีย์จาก user_profile
+  const card = document.getElementById('logsCard');
+  const body = document.getElementById('logsBody');
+  const btn  = document.getElementById('toggleLogsBtn');
+  if(!card || !body || !btn) return;
+
+  function apply(hidden){
+    card.classList.toggle('is-hidden', hidden);
+    btn.innerHTML = hidden
+      ? '<i class="bi bi-eye"></i> แสดงบันทึก'
+      : '<i class="bi bi-eye-slash"></i> ซ่อนบันทึก';
+    btn.setAttribute('aria-expanded', String(!hidden));
+  }
+
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch(e){}
+  const initialHidden = (saved === null) ? true : (saved === '1');
+  apply(initialHidden);
+
+  btn.addEventListener('click', () => {
+    const willHide = !card.classList.contains('is-hidden');
+    apply(willHide);
+    try { localStorage.setItem(KEY, willHide ? '1' : '0'); } catch(e){}
+  });
+})();
+</script>
 </body>
 </html>

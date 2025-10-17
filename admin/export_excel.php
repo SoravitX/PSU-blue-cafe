@@ -1,7 +1,7 @@
 <?php
-// export_excel.php — Export รายงานยอดขายเป็น Excel (Dynamic price columns)
-// ลบคอลัมน์: ก่อนลด (Gross), ออเดอร์/ราคา (ต่อบรรทัด), และ หลังลด (Net)
+// export_excel.php — Export รายงานยอดขายเป็น Excel (Dynamic price columns + โปรโมชันที่ใช้ต่อเมนู)
 // ✔ Final = SUM(od.total_price) + ท็อปปิง(ที่คำนวณได้) — ใช้เป็นทางลัดถ้ายังไม่สะดวกเพิ่มตารางท็อปปิงจริง
+// ✔ เพิ่มคอลัมน์ “โปรโมชันที่ใช้” (รวมทั้ง ITEM-level และ ORDER-level) ต่อเมนูในช่วงเวลาที่เลือก
 
 declare(strict_types=1);
 session_start();
@@ -48,7 +48,7 @@ function unit_disc(?string $type, $val, $max, float $cur): float {
 
 /* ---------- รับช่วงเวลา ---------- */
 $period=$_GET['period']??'today';
-$start =trim((string)($_GET['start']??'')); $end=trim((string)($_GET['end']??''));
+$start =trim((string)($_GET['start']??'')); $end=trim((string)$_GET['end']??'');
 [$R1,$R2,$rsObj,$reObj]=dt_range_from_period($period,$start,$end);
 
 /* ---------- สถานะที่นับยอดขาย ---------- */
@@ -124,36 +124,74 @@ while($r=$rs->fetch_assoc()){
 }
 $st->close();
 
-/* ---------- รวมราคาที่ใช้จริงสำหรับหัวคอลัมน์ (ราคา xxx) ---------- */
-$priceMapPerMenu=[]; $allPrices=[];
+/* ---------- รวมราคาที่ใช้จริงสำหรับหัวคอลัมน์ + แผนที่โปรโมชันต่อเมนู ---------- */
+$priceMapPerMenu=[];  // สำหรับคอลัมน์ "ราคา xxx"
+$promoMapPerMenu=[];  // สำหรับคอลัมน์ "โปรโมชันที่ใช้"
+$allPrices=[];
+
 $sqlDet="
-  SELECT od.menu_id, od.quantity, od.total_price,
-         m.price AS current_price,
-         p.discount_type, p.discount_value, p.max_discount
+  SELECT
+    od.menu_id, od.quantity, od.total_price,
+    m.price AS current_price,
+
+    -- โปรฯ รายรายการ (ITEM)
+    pI.promo_id   AS item_promo_id,
+    pI.name       AS item_promo_name,
+    pI.discount_type AS item_discount_type,
+    pI.discount_value AS item_discount_value,
+    pI.max_discount   AS item_max_discount,
+
+    -- โปรฯ ทั้งบิล (ORDER)
+    pO.promo_id   AS order_promo_id,
+    pO.name       AS order_promo_name
+
   FROM order_details od
-  JOIN orders o ON o.order_id=od.order_id
-  JOIN menu   m ON m.menu_id=od.menu_id
-  LEFT JOIN promotions p ON p.promo_id=od.promo_id
+  JOIN orders o        ON o.order_id=od.order_id
+  JOIN menu   m        ON m.menu_id=od.menu_id
+  LEFT JOIN promotions pI ON pI.promo_id=od.promo_id
+  LEFT JOIN promotions pO ON pO.promo_id=o.promo_id
   WHERE o.order_time>=? AND o.order_time<? AND o.status IN ($ph)";
 $st=$conn->prepare($sqlDet);
 $st->bind_param($types,$R1,$R2,...$OK);
 $st->execute(); $rs=$st->get_result();
+
 while($row=$rs->fetch_assoc()){
-  $mid=(int)$row['menu_id']; $qty=max(1,(int)$row['quantity']); $cur=(float)$row['current_price'];
+  $mid = (int)$row['menu_id'];
+  $qty = max(1,(int)$row['quantity']);
+  $cur = (float)$row['current_price'];
+
   if(!isset($priceMapPerMenu[$mid])) $priceMapPerMenu[$mid]=['buckets'=>[]];
+  if(!isset($promoMapPerMenu[$mid])) $promoMapPerMenu[$mid]=[];
 
-  $disc=unit_disc($row['discount_type']??null,$row['discount_value']??null,$row['max_discount']??null,$cur);
-  $u_final=((float)$row['total_price'])/$qty;
-  $price_used = round($u_final + $disc, 2); // ราคาฐาน ณ ตอนสั่ง
-  $key  = number_format($price_used,2,'.','');
+  /* ==== ราคาฐาน ณ ตอนสั่ง (สำหรับหัวคอลัมน์ "ราคา xxx") ==== */
+  $disc = unit_disc(
+    $row['item_discount_type'] ?? null,
+    $row['item_discount_value'] ?? null,
+    $row['item_max_discount'] ?? null,
+    $cur
+  );
+  $u_final    = ((float)$row['total_price'])/$qty;
+  $price_used = round($u_final + $disc, 2);
+  $key        = number_format($price_used,2,'.','');
 
-  $allPrices[$key]=true;
+  $allPrices[$key] = true;
   if(!isset($priceMapPerMenu[$mid]['buckets'][$key])) $priceMapPerMenu[$mid]['buckets'][$key]=0;
   $priceMapPerMenu[$mid]['buckets'][$key] += $qty;
+
+  /* ==== โปรโมชันที่ใช้ (ITEM/ORDER) ==== */
+  if (!empty($row['item_promo_id']) && !empty($row['item_promo_name'])) {
+    $name = (string)$row['item_promo_name'];             // ITEM-level
+    if(!isset($promoMapPerMenu[$mid][$name])) $promoMapPerMenu[$mid][$name]=0;
+    $promoMapPerMenu[$mid][$name] += $qty;
+  } elseif (!empty($row['order_promo_id']) && !empty($row['order_promo_name'])) {
+    $name = '[ORDER] '.(string)$row['order_promo_name']; // ORDER-level
+    if(!isset($promoMapPerMenu[$mid][$name])) $promoMapPerMenu[$mid][$name]=0;
+    $promoMapPerMenu[$mid][$name] += $qty;
+  }
 }
 $st->close();
 
-/* ---------- KPI ด้านบน ---------- */
+/* ---------- KPI ด้านบน (ย้ายไปล่างแล้ว) ---------- */
 /* ใช้ยอดรวมจาก $tot ที่เราบวกท็อปแล้ว เพื่อให้สอดคล้องกับทางลัด */
 $topping_total  = (float)$tot['topping'];
 $discount_total = (float)$tot['discount'];
@@ -174,27 +212,27 @@ if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
   $ws->setCellValue('E2',$periodText);
 
   $summaryCols = 3; // ส่วนลดโปรฯ, ท็อปปิง, ยอดสุทธิ (Final)
-  $lastColIndex = 6 + count($priceList) + $summaryCols;
+  // ★ ปรับ lastColIndex เพราะเพิ่มคอลัมน์ "โปรโมชันที่ใช้"
+  // total fixed cols (ก่อนคอลัมน์ราคา) = 3 (E รายการ, F จำนวน, G โปรโมชันที่ใช้)
+  $lastColIndex = 7 + count($priceList) + $summaryCols; // = 10 + count($priceList)
   $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($lastColIndex);
   $ws->mergeCells("E1:{$lastCol}1");
   $ws->mergeCells("E2:{$lastCol}2");
   $ws->getStyle('E1')->getFont()->setBold(true)->setSize(14);
   $ws->getStyle('E2')->getFont()->setBold(true);
 
-  // KPI ซ้าย
-  $ws->setCellValue('C1','รายได้จากท็อปปิง (THB)'); $ws->setCellValue('D1',$topping_total);
-  $ws->setCellValue('C2','ส่วนลดที่ให้ไป (โปรฯ)');   $ws->setCellValue('D2',$discount_total);
-  $ws->setCellValue('C3','ยอดสุทธิสุดท้าย');         $ws->setCellValue('D3',$final_grand);
-  $ws->getStyle('C1:D3')->getFont()->setBold(true);
-  $ws->getStyle('D1:D3')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-  $ws->getColumnDimension('C')->setWidth(28);
-  $ws->getColumnDimension('D')->setWidth(18);
-
   /* Header */
   $col=5; // E
   $ws->setCellValueByColumnAndRow($col,4,'รายการ');   $ws->getColumnDimension('E')->setWidth(34); $col++;
   $ws->setCellValueByColumnAndRow($col,4,'จำนวน');    $ws->getColumnDimension('F')->setWidth(10); $col++;
 
+  /* ★ NEW: คอลัมน์โปรโมชันที่ใช้ */
+  $ws->setCellValueByColumnAndRow($col,4,'โปรโมชันที่ใช้');
+  $wsCol=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+  $ws->getColumnDimension($wsCol)->setWidth(28);
+  $col++;
+
+  /* คอลัมน์ราคาแบบไดนามิก */
   foreach($priceList as $p){
     $ws->setCellValueByColumnAndRow($col,4,'ราคา '.number_format((float)$p,2,'.',''));
     $wsCol=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
@@ -202,6 +240,7 @@ if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
     $col++;
   }
 
+  /* สรุปท้ายแถว */
   foreach(['ส่วนลดโปรฯ','ท็อปปิง','ยอดสุทธิ (Final)'] as $h){
     $ws->setCellValueByColumnAndRow($col,4,$h);
     $wsCol=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
@@ -229,15 +268,27 @@ if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
       }
       $isOdd=!$isOdd;
 
-      $mp=$priceMapPerMenu[$it['id']] ?? ['buckets'=>[]];
-
       $ws->setCellValue("E{$row}", $it['name']);
       $ws->setCellValue("F{$row}", (int)$it['qty']);
 
-      // Dynamic price qty
-      $cIndex=7; // G
+      /* ★ NEW: โปรโมชันที่ใช้ (รวมจาก $promoMapPerMenu per menu) */
+      $mpPromo = $promoMapPerMenu[$it['id']] ?? [];
+      if (!empty($mpPromo)) {
+        ksort($mpPromo, SORT_NATURAL);
+        $parts=[];
+        foreach($mpPromo as $pname=>$pqty){
+          $parts[] = $pname.' x'.$pqty;
+        }
+        $promoText = implode(', ', $parts);
+      } else {
+        $promoText = '–';
+      }
+      $ws->setCellValue("G{$row}", $promoText);
+
+      // Dynamic price qty: เริ่มคอลัมน์ถัดไป (H)
+      $cIndex=8; // H
       foreach($priceList as $pkey){
-        $qtyAtPrice=(int)($mp['buckets'][$pkey] ?? 0);
+        $qtyAtPrice=(int)(($priceMapPerMenu[$it['id']]['buckets'][$pkey] ?? 0));
         $colLetter=\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($cIndex);
         if($qtyAtPrice>0) $ws->setCellValue("{$colLetter}{$row}", $qtyAtPrice);
         $cIndex++;
@@ -257,7 +308,8 @@ if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
 
   // รวมท้ายตาราง (ใช้ค่าที่บวกท็อปแล้ว)
   $ws->setCellValue("E{$row}", 'รวมทั้งหมด');
-  $moneyStartIndex = 7 + count($priceList); // เริ่มที่ "ส่วนลดโปรฯ"
+  // ★ เริ่มคอลัมน์ตัวเงินหลังคอลัมน์ราคา: เพราะเพิ่มคอลัมน์โปรโมชันที่ใช้ (G) แล้ว
+  $moneyStartIndex = 8 + count($priceList); // H=8 เป็นคอลัมน์ราคาแรก → หลังจากราคาทั้งหมดแล้วคือคอลัมน์ตัวเงินแรก
   $ws->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($moneyStartIndex + 0).$row, $tot['discount']);
   $ws->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($moneyStartIndex + 1).$row, $tot['topping']);
   $ws->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($moneyStartIndex + 2).$row, $tot['final']);
@@ -278,6 +330,23 @@ if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
   $ws->freezePane('E5');
   $ws->setAutoFilter("E4:{$lastCol}{$lastRow}");
 
+  /* ===== KPI block: วางใต้ "รวมทั้งหมด" ===== */
+  $kpiStart = $lastRow + 2; // เว้น 1 บรรทัด
+  $ws->setCellValue("E{$kpiStart}",     'รายได้จากท็อปปิง (THB)');
+  $ws->setCellValue("F{$kpiStart}",      $topping_total);
+  $ws->setCellValue("E".($kpiStart+1),  'ส่วนลดที่ให้ไป (โปรฯ)');
+  $ws->setCellValue("F".($kpiStart+1),   $discount_total);
+  $ws->setCellValue("E".($kpiStart+2),  'ยอดสุทธิสุดท้าย');
+  $ws->setCellValue("F".($kpiStart+2),   $final_grand);
+
+  $ws->getStyle("E{$kpiStart}:E".($kpiStart+2))->getFont()->setBold(true);
+  $ws->getStyle("F{$kpiStart}:F".($kpiStart+2))
+     ->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
+
+  // กำหนดความกว้างให้ดูดี
+  $ws->getColumnDimension('E')->setWidth(34);
+  $ws->getColumnDimension('F')->setWidth(18);
+
   header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   $fname='PSU_Blue_Cafe_Sales_'.date('Ymd_His').'.xlsx';
   header('Content-Disposition: attachment; filename="'.$fname.'"');
@@ -295,12 +364,10 @@ $out=fopen('php://output','w');
 
 fputcsv($out, ["รายงานขายเครื่องดื่ม PSU Blue Café"]);
 fputcsv($out, ["ช่วงวันที่", th_full_date($rsObj), "ถึง", th_full_date((clone $reObj)->modify('-1 second'))]);
-fputcsv($out, ['รายได้จากท็อปปิง (THB)', number_format($topping_total,2,'.','')]);
-fputcsv($out, ['ส่วนลดที่ให้ไป (โปรฯ) (THB)', number_format($discount_total,2,'.','')]);
-fputcsv($out, ['ยอดสุทธิสุดท้าย', number_format($tot['final'],2,'.','')]); // ★ รวมท็อปแล้ว
 fputcsv($out, []);
 
-$hdr=['หมวดหมู่','รายการ','จำนวน'];
+/* ★ เพิ่มคอลัมน์ 'โปรโมชันที่ใช้' */
+$hdr=['หมวดหมู่','รายการ','จำนวน','โปรโมชันที่ใช้'];
 foreach($priceList as $p) $hdr[]='ราคา '.number_format((float)$p,2,'.','');
 array_push($hdr,'ส่วนลดโปรฯ','ท็อปปิง','ยอดสุทธิ (Final)');
 fputcsv($out,$hdr);
@@ -308,7 +375,21 @@ fputcsv($out,$hdr);
 foreach($byCat as $catName=>$items){
   foreach($items as $it){
     $mp=$priceMapPerMenu[$it['id']] ?? ['buckets'=>[]];
-    $rowData=[$catName,$it['name'],(int)$it['qty']];
+
+    /* ★ NEW: สร้างข้อความโปรโมชัน */
+    $mpPromo = $promoMapPerMenu[$it['id']] ?? [];
+    if (!empty($mpPromo)) {
+      ksort($mpPromo, SORT_NATURAL);
+      $parts=[];
+      foreach($mpPromo as $pname=>$pqty){
+        $parts[] = $pname.' x'.$pqty;
+      }
+      $promoText = implode(', ', $parts);
+    } else {
+      $promoText = '–';
+    }
+
+    $rowData=[$catName,$it['name'],(int)$it['qty'],$promoText];
     foreach($priceList as $pkey){ $rowData[]=(int)($mp['buckets'][$pkey]??0); }
     array_push($rowData,
       number_format((float)$it['discount'],2,'.',''),
@@ -319,7 +400,8 @@ foreach($byCat as $catName=>$items){
   }
 }
 
-$tail=['รวมทั้งหมด','',''];
+/* ท้ายตาราง: ขยับช่องว่างเพิ่ม 1 ช่อง เพราะมีคอลัมน์โปรโมชันที่ใช้ */
+$tail=['รวมทั้งหมด','','',''];
 foreach($priceList as $_) $tail[]='';
 array_push($tail,
   number_format($tot['discount'],2,'.',''),
@@ -327,6 +409,12 @@ array_push($tail,
   number_format($tot['final'],2,'.','') // ★ รวมท็อปแล้ว
 );
 fputcsv($out,$tail);
+
+/* วาง KPI ใต้รวมทั้งหมด */
+fputcsv($out, []);
+fputcsv($out, ['รายได้จากท็อปปิง (THB)', number_format($topping_total,2,'.','')]);
+fputcsv($out, ['ส่วนลดที่ให้ไป (โปรฯ) (THB)', number_format($discount_total,2,'.','')]);
+fputcsv($out, ['ยอดสุทธิสุดท้าย', number_format($tot['final'],2,'.','')]);
 
 fclose($out);
 exit;

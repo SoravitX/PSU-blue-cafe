@@ -302,7 +302,7 @@ body, .table, .btn, input, label, .badge { font-size:14.5px !important; }
 <!-- Topbar -->
 <div class="topbar d-flex align-items-center justify-content-between">
   <div class="d-flex align-items-center">
-    <h4 class="m-0 brand">PSU Blue Cafe • หลังร้าน</h4>
+    <h4 class="m-0 brand">หลังร้าน</h4>
   </div>
   <div class="d-flex align-items-center topbar-actions">
     <a href="back_store_history.php" class="btn btn-primary btn-sm mr-2">

@@ -23,8 +23,8 @@ const AUTO_CO_GRACE_MIN = 5; // ปิดงานอัตโนมัติห
 /** นิยามรอบงาน (ช่วงเช็คอิน + เวลาเลิกงาน) */
 function work_windows(): array {
   return [
-    ['start'=>'09:00','end'=>'09:30','end_work'=>'12:00','label'=>'เช้า (09:00–09:30 • เลิก 12:00)'],
-    ['start'=>'13:00','end'=>'13:30','end_work'=>'17:00','label'=>'บ่าย (13:00–13:30 • เลิก 17:00)'],
+    ['start'=>'09:00','end'=>'09:30','end_work'=>'12:00','label'=>'เช้า (09:00–09:30 ) • เลิก 12:00)'],
+    ['start'=>'13:00','end'=>'13:30','end_work'=>'17:00','label'=>'บ่าย (13:00–13:30 ) • เลิก 17:00)'],
   ];
 }
 function allowed_windows(): array {
@@ -433,10 +433,6 @@ body{
     <small class="<?= $in_window ? 'pulse':'' ?>"><?= h($window_label) ?> <?= $next_window ? '• '.h($next_window) : '' ?></small>
   </div>
 
-  <div class="debug mb-3">
-    เวลา PHP: <strong><?= h($nowPhp->format('Y-m-d H:i:s')) ?></strong> •
-    เวลา MySQL: <strong><?= h($nowDb) ?></strong>
-  </div>
 
   <?php if($msg): ?>
     <div class="alert" style="background:var(--ok);color:#0b2a17;border:none;border-radius:10px"><i class="bi bi-check2-circle"></i> <?= h($msg) ?></div>
@@ -480,7 +476,9 @@ body{
             <i class="bi bi-door-open"></i> เข้างาน
           </button>
         </form>
-        <form method="post" class="d-inline ml-2">
+
+        <!-- เพิ่มยืนยันก่อนออกงาน -->
+        <form method="post" class="d-inline ml-2" onsubmit="return confirmCheckout();">
           <input type="hidden" name="action" value="checkout">
           <button type="submit" class="btn btn-co" <?= $open ? '' : 'disabled' ?>><i class="bi bi-door-closed"></i> ออกงาน</button>
         </form>
@@ -579,8 +577,12 @@ body{
 
   // ยืนยันก่อนเช็คอิน (ป้องกันคลิกพลาด)
   window.confirmCheckin = function(){
-    // ถ้าอยู่นอกช่วงเวลาจะมี title บอกอยู่แล้ว; ตรงนี้ถามอีกรอบเฉพาะตอนกดในช่วงเวลา
     return confirm('ยืนยันเช็คอินตอนนี้หรือไม่?');
+  };
+
+  // ยืนยันก่อนเช็คเอาท์ (ป้องกันคลิกพลาด)
+  window.confirmCheckout = function(){
+    return confirm('ยืนยันเช็คเอาท์ตอนนี้หรือไม่?');
   };
 })();
 </script>

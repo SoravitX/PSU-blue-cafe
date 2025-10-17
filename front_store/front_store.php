@@ -288,7 +288,7 @@ function render_cart_box(): string {
           <form method="post" class="m-0 flex-fill">
             <input type="hidden" name="action" value="checkout">
             <button class="btn btn-success btn-block" id="btnCheckout" style="font-weight:900; letter-spacing:.2px">
-              <i class="bi bi-bag-check"></i> สั่งออเดอร์ (F2)
+              <i class="bi bi-bag-check"></i> สั่งออเดอร์ 
             </button>
           </form>
         </div>
@@ -580,109 +580,83 @@ if ($action === 'remove') {
 
 if ($action === 'clear') { $_SESSION['cart'] = []; }
 
-/* ----- CHECKOUT ----- */
-$new_order_id = 0; $new_total = 0.00; $new_order_code = '';
+/* ----- CHECKOUT (no TRIGGER) ----- */
+$new_order_id = 0; $new_total = 0.00; $new_order_code = ''; $new_order_seq = '';
+
 if ($action === 'checkout' && !empty($_SESSION['cart'])) {
+
+  // รวมยอดจากตะกร้า (ใช้ราคา/หน่วย หลังหักโปรแล้ว)
   $total = 0.00;
-  foreach ($_SESSION['cart'] as $row) $total += ((float)$row['price']) * ((int)$row['qty']);
-
-  $stmt = $conn->prepare("INSERT INTO orders (user_id, order_time, status, total_price)
-                          VALUES (?, NOW(), 'pending', ?)");
-  $stmt->bind_param("id", $_SESSION['uid'], $total);
-  $stmt->execute();
-  $order_id = $stmt->insert_id;
-  $stmt->close();
-
   foreach ($_SESSION['cart'] as $row) {
-    $line = ((int)$row['qty']) * ((float)$row['price']);
-    $promoId = $row['promo_id'] ?? null;
-
-    if ($promoId === null) {
-      $stmt = $conn->prepare("INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
-                              VALUES (?, ?, NULL, ?, ?, ?)");
-      $stmt->bind_param("iiisd", $order_id, $row['menu_id'], $row['qty'], $row['note'], $line);
-    } else {
-      $stmt = $conn->prepare("INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
-                              VALUES (?, ?, ?, ?, ?, ?)");
-      $stmt->bind_param("iiiisd", $order_id, $row['menu_id'], $promoId, $row['qty'], $row['note'], $line);
-    }
-    $stmt->execute();
-    $stmt->close();
+    $total += ((float)$row['price']) * ((int)$row['qty']);
   }
 
-  // 👇 ดึงรหัสรายวัน (YYMMDD-###) ออกมาใช้แสดงผล
-
-// ดึง order_date + order_seq แล้วเตรียมทั้งแบบเต็ม และแบบ seq-only
-$stmt = $conn->prepare("SELECT order_date, order_seq FROM orders WHERE order_id=?");
-$stmt->bind_param("i", $order_id);
-$stmt->execute();
-$stmt->bind_result($od, $os);
-$stmt->fetch();
-$stmt->close();
-
-$new_order_id     = $order_id;
-$new_total        = $total;
-$new_order_code   = ($od && $os) ? format_order_code((string)$od, (int)$os) : ('#'.$order_id); // ยังเก็บไว้ใช้ภายใน
-$new_order_seq    = ($os) ? format_order_seq((int)$os) : '';                                  // <<< ใช้แสดงผลแทน
-
-
-}
-/* ----- CHECKOUT ----- */
-$new_order_id = 0; $new_total = 0.00; $new_order_code = '';
-if ($action === 'checkout' && !empty($_SESSION['cart'])) {
-  // รวมยอด
-  $total = 0.00;
-  foreach ($_SESSION['cart'] as $row) $total += ((float)$row['price']) * ((int)$row['qty']);
-
-  // ===== แทน Trigger: รันลำดับต่อวัน =====
-  // ใช้เวลาไทยตรงกับที่ตั้งไว้ด้านบน
+  // เตรียมค่าสำคัญ (อิงเวลาไทยที่ตั้งไว้ก่อนหน้า)
   $today = date('Y-m-d');
 
+  // === ทำให้แน่ใจว่า order_seq ต่อวัน “ไม่ชน” ด้วยทรานแซกชัน + FOR UPDATE ===
   $conn->begin_transaction();
-
   try {
-    // 1) ดันตัวนับต่อวันขึ้น 1 แบบกัน race ด้วย LAST_INSERT_ID()
-    $stSeq = $conn->prepare("
-      INSERT INTO order_counters (order_date, last_seq)
-      VALUES (?, LAST_INSERT_ID(1))
-      ON DUPLICATE KEY UPDATE last_seq = LAST_INSERT_ID(last_seq + 1)
-    ");
-    $stSeq->bind_param('s', $today);
-    $stSeq->execute();
-    $stSeq->close();
+    // 1) ล็อคแถวของวันปัจจุบันจาก order_counters
+    $seq = 0;
+    $stmt = $conn->prepare("SELECT last_seq FROM order_counters WHERE order_date = ? FOR UPDATE");
+    $stmt->bind_param("s", $today);
+    $stmt->execute();
+    $stmt->bind_result($last_seq);
+    if ($stmt->fetch()) {
+      $seq = (int)$last_seq + 1;
+    } else {
+      $seq = 1;
+    }
+    $stmt->close();
 
-    // 2) รับค่าลำดับล่าสุด (seq วันนี้)
-    $rs = $conn->query("SELECT LAST_INSERT_ID() AS seq");
-    $seq = (int)($rs->fetch_assoc()['seq'] ?? 0);
-    $rs->free();
+    // 2) upsert last_seq
+    if ($seq === 1) {
+      $stmt = $conn->prepare("INSERT INTO order_counters (order_date, last_seq) VALUES (?, 1)");
+      $stmt->bind_param("s", $today);
+      $stmt->execute();
+      $stmt->close();
+    } else {
+      $stmt = $conn->prepare("UPDATE order_counters SET last_seq = ? WHERE order_date = ?");
+      $stmt->bind_param("is", $seq, $today);
+      $stmt->execute();
+      $stmt->close();
+    }
 
-    // safety
-    if ($seq <= 0) { throw new RuntimeException('cannot allocate daily sequence'); }
-
-    // 3) สร้างออเดอร์ พร้อม order_time/order_date/order_seq/updated_at
-    $stOrd = $conn->prepare("
-      INSERT INTO orders (user_id, order_time, order_date, order_seq, status, total_price, updated_at)
-      VALUES (?, NOW(), ?, ?, 'pending', ?, NOW(6))
+    // 3) สร้างออเดอร์ (ตั้งค่าที่ TRIGGER เคยทำ: order_date, order_seq, updated_at)
+    $stmt = $conn->prepare("
+      INSERT INTO orders
+        (user_id, order_time, order_date, order_seq, status, payment_method, total_price, updated_at)
+      VALUES
+        (?, NOW(), ?, ?, 'pending', 'transfer', ?, NOW(6))
     ");
     $uid = (int)$_SESSION['uid'];
-    $stOrd->bind_param('isid', $uid, $today, $seq, $total);
-    $stOrd->execute();
-    $order_id = $stOrd->insert_id;
-    $stOrd->close();
+    $stmt->bind_param("isid", $uid, $today, $seq, $total);
+    $stmt->execute();
+    $order_id = $stmt->insert_id;
+    $stmt->close();
 
-    // 4) รายการสินค้า
+    // 4) รายการย่อย
     foreach ($_SESSION['cart'] as $row) {
       $line    = ((int)$row['qty']) * ((float)$row['price']);
+      $menu_id = (int)$row['menu_id'];
+      $qty     = (int)$row['qty'];
+      $note    = (string)$row['note'];
       $promoId = $row['promo_id'] ?? null;
 
       if ($promoId === null) {
-        $stmt = $conn->prepare("INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
-                                VALUES (?, ?, NULL, ?, ?, ?)");
-        $stmt->bind_param("iiisd", $order_id, $row['menu_id'], $row['qty'], $row['note'], $line);
+        $stmt = $conn->prepare("
+          INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
+          VALUES (?, ?, NULL, ?, ?, ?)
+        ");
+        $stmt->bind_param("iiisd", $order_id, $menu_id, $qty, $note, $line);
       } else {
-        $stmt = $conn->prepare("INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
-                                VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("iiiisd", $order_id, $row['menu_id'], $promoId, $row['qty'], $row['note'], $line);
+        $pid = (int)$promoId;
+        $stmt = $conn->prepare("
+          INSERT INTO order_details (order_id, menu_id, promo_id, quantity, note, total_price)
+          VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->bind_param("iiiisd", $order_id, $menu_id, $pid, $qty, $note, $line);
       }
       $stmt->execute();
       $stmt->close();
@@ -690,21 +664,21 @@ if ($action === 'checkout' && !empty($_SESSION['cart'])) {
 
     $conn->commit();
 
-    // === เตรียม label แสดงผลหลัง checkout ===
-    $new_order_id  = $order_id;
-    $new_total     = $total;
-    $new_order_seq = format_order_seq($seq); // "003"
-    $new_order_code = format_order_code($today, $seq); // "YYMMDD-003"
-
     // เคลียร์ตะกร้า
     $_SESSION['cart'] = [];
 
-  } catch (Throwable $e) {
+    // สำหรับ UI: แสดง “เลขลำดับ 3 หลัก” ของวัน (ไม่ต้องพึ่ง TRIGGER)
+    $new_order_id   = $order_id;
+    $new_total      = $total;
+    $new_order_seq  = str_pad((string)$seq, 3, '0', STR_PAD_LEFT);  // 3 หลัก
+    $new_order_code = format_order_code($today, $seq);              // YYMMDD-###
+  }
+  catch (Throwable $e) {
     $conn->rollback();
-    // ดูว่าอยากแจ้งข้อความผู้ใช้ไหม (ตอนนี้ปล่อยให้ flow เดิมแจ้ง fail จากหน้า UI)
-    throw $e;
+    // ล้มเหลวแบบเงียบ หรือจะแจ้งเตือนก็ได้
   }
 }
+
 
 
 /* ---------- AJAX: กล่องตะกร้า ---------- */
@@ -1963,6 +1937,16 @@ body, .table, .btn, input, label, .badge{ font-size: 14.5px; }
   font-weight: 900;
 }
 
+/* === Badge ผู้ใช้: ขาวชัดเจนบนพื้นฟ้า === */
+.badge-user {
+  background: linear-gradient(180deg, #2EA7FF, #1F7EE8); /* ฟ้าน้ำเงิน PSU */
+  color: #FFFFFF !important;                             /* ตัวอักษรขาว */
+  border: 1px solid #1669C9;                             /* ขอบน้ำเงินเข้ม */
+  border-radius: 999px;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);                  /* ให้เด่นบนพื้น */
+}
+
 </style>
 </head>
 <body>
@@ -1993,9 +1977,7 @@ body, .table, .btn, input, label, .badge{ font-size: 14.5px; }
       <span class="badge badge-user px-3 py-2 mr-2"><i class="bi bi-person"></i> ผู้ใช้: <?= htmlspecialchars($_SESSION['username'] ?? '', ENT_QUOTES,'UTF-8') ?></span>
 
       <!-- NEW: Theme toggle -->
-      <button id="themeToggle" class="btn btn-sm btn-ghost mr-2" type="button" title="สลับธีม (Light/Dark)">
-        <i class="bi bi-moon-stars"></i>
-      </button>
+
 
       <a class="btn btn-sm btn-outline-light" href="../logout.php"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</a>
     </div>
